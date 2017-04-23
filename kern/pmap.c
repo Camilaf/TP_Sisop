@@ -102,13 +102,17 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-	
 	result = nextfree;
+	
 	if (n > 0) {
+		
 		nextfree += ROUNDUP(n, PGSIZE);	
 		// Falta panic!!
+		if ((uintptr_t)nextfree >= npages*PGSIZE){
+			panic("boot_alloc: out of memory\n");
+		}
 	}
-	
+
 	return result;
 		
 	//return NULL;
@@ -133,7 +137,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	//panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -158,14 +162,15 @@ mem_init(void)
 	// Your code goes here:
 
 	
-	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
-	memset(pages, 0, npages*sizeof(struct PageInfo);
+	pages = (struct PageInfo *) boot_alloc(npages*sizeof(struct PageInfo));
+	memset(pages, 0, sizeof(struct PageInfo)*npages);
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
 	// memory management will go through the page_* functions. In
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
+	
 	page_init();
 
 	check_page_free_list(1);
@@ -183,7 +188,8 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 	
-	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	//boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -196,7 +202,8 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 
-	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W) 
+	//boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	
 	/* Ailu: PTE_W controls wheter instructions are allowed to issue writes to the page; if not set, only reads and instruction fetches
 	 * are allowed. PTE_U controls wheter user programs are allowed to use the page; if clear, only the kernel is allowed to use the page.
 	 * ¿Cuál iría? ¿Antes es PTE_U o cual?*/
@@ -211,7 +218,8 @@ mem_init(void)
 	// Your code goes here:
 	
 	//0-kernbase?????
-	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	
+	//boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -858,3 +866,4 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
+
