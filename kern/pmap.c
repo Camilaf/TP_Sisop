@@ -102,8 +102,16 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	
+	result = nextfree;
+	if (n > 0) {
+		nextfree += ROUNDUP(n, PGSIZE);	
+		// Falta panic!!
+	}
+	
+	return result;
+		
+	//return NULL;
 }
 
 // Set up a two-level page table:
@@ -149,6 +157,7 @@ mem_init(void)
 	//Use memset to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
+	
 	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
 	memset(pages, 0, npages*sizeof(struct PageInfo);
 	//////////////////////////////////////////////////////////////////////
