@@ -324,6 +324,7 @@ page_alloc(int alloc_flags)
 	// Remove from page_free_list.
 	// Assign next page
 	page_free_list = result->pp_link;
+	result -> pp_link = NULL;
 	
 	if (alloc_flags & ALLOC_ZERO) {
 		char *kva = page2kva(result);
@@ -905,5 +906,4 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
-
 
