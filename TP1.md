@@ -29,22 +29,64 @@ $ readelf -S kernel
 Encabezados de Sección:
   [Nr] Nombre            Tipo            Direc    Desp   Tam    ES Opt En Inf Al
   [ 0]                   NULL            00000000 000000 000000 00      0   0  0
-  [ 1] .text             PROGBITS        f0100000 001000 001b51 00  AX  0   0 16
-  [ 2] .rodata           PROGBITS        f0101b60 002b60 0007f0 00   A  0   0 32
-  [ 3] .stab             PROGBITS        f0102350 003350 004291 0c   A  4   0  4
-  [ 4] .stabstr          STRTAB          f01065e1 0075e1 001cb5 00   A  0   0  1
-  [ 5] .data             PROGBITS        f0109000 00a000 00a300 00  WA  0   0 4096
-  [ 6] .bss              NOBITS          f0113300 014300 000650 00  WA  0   0 32
-  [ 7] .comment          PROGBITS        00000000 014300 000034 01  MS  0   0  1
-  [ 8] .shstrtab         STRTAB          00000000 014fe0 00004c 00      0   0  1
-  [ 9] .symtab           SYMTAB          00000000 014334 000840 10     10  62  4
-  [10] .strtab           STRTAB          00000000 014b74 00046c 00      0   0  1
+  [ 1] .text             PROGBITS        f0100000 001000 001f81 00  AX  0   0 16
+  [ 2] .rodata           PROGBITS        f0101fa0 002fa0 0009d4 00   A  0   0 32
+  [ 3] .stab             PROGBITS        f0102974 003974 0048e5 0c   A  4   0  4
+  [ 4] .stabstr          STRTAB          f0107259 008259 001e54 00   A  0   0  1
+  [ 5] .data             PROGBITS        f010a000 00b000 00a300 00  WA  0   0 4096
+  [ 6] .bss              NOBITS          f0114300 015300 000650 00  WA  0   0 32
+  [ 7] .comment          PROGBITS        00000000 015300 000034 01  MS  0   0  1
+  [ 8] .shstrtab         STRTAB          00000000 0160a4 00004c 00      0   0  1
+  [ 9] .symtab           SYMTAB          00000000 015334 0008c0 10     10  70  4
+  [10] .strtab           STRTAB          00000000 015bf4 0004b0 00      0   0  1
 
 
-La sección .bss comienza en 0xf0113300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0113950. 
-Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0113950 y múltiplo de 4096. El valor buscado es 0xf0114000, que será la primera dirección de memoria que devolverá boot_alloc.
+La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. 
+Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0114950 y múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
 
-b)
+b. 
+$ make gdbgdb -q -s obj/kern/kernel -ex 'target remote 127.0.0.1:26000' -n -x .gdbinit
+Leyendo símbolos desde obj/kern/kernel...hecho.
+Remote debugging using 127.0.0.1:26000
+0x0000fff0 in ?? ()
+(gdb) b boot_alloc
+Punto de interrupción 1 at 0xf0100ae6: file kern/pmap.c, line 86.
+(gdb) c
+Continuando.
+Se asume que la arquitectura objetivo es i386
+=> 0xf0100ae6 <boot_alloc>:	mov    %eax,%edx
+
+Breakpoint 1, boot_alloc (n=<unknown type>) at kern/pmap.c:86
+86	{
+(gdb) print nextfree
+$1 = 0x0
+(gdb) print end
+$2 = 65554
+(gdb) b 97
+Punto de interrupción 2 at 0xf0100af1: file kern/pmap.c, line 97.
+(gdb) c
+Continuando.
+=> 0xf0100af1 <boot_alloc+11>:	mov    $0xf011594f,%eax
+
+Breakpoint 2, boot_alloc (n=<unknown type>) at kern/pmap.c:97
+97			nextfree = ROUNDUP((char *) end, PGSIZE);
+(gdb) next
+=> 0xf0100b00 <boot_alloc+26>:	mov    0xf0114538,%eax
+105		result = nextfree;
+(gdb) print nextfree
+$4 = 0xf0115000 ""
+(gdb) b 119
+Punto de interrupción 3 at 0xf0100b47: file kern/pmap.c, line 119.
+(gdb) c
+Continuando.
+=> 0xf0100b47 <boot_alloc+97>:	repz ret 
+
+Breakpoint 3, boot_alloc (n=<unknown type>) at kern/pmap.c:119
+119	}
+(gdb) print nextfree
+$6 = 0xf0116000 ""
+(gdb) 
+
 
 page_alloc
 ----------
