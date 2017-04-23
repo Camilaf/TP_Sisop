@@ -394,7 +394,38 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+
+	struct PageInfo *page;
+	if (pgdir[PDX(va)]) //pdx obtains directory index of va
+						//PTE_ADDR obtains the address
+						//of the page
+						
+		//pa2page devuelve el struct PageInfo de lo que le pases
+						
+		page = pa2page( ??? ); //
+		
+	else{ //if create = FALSE or page_alloc does not "work"
+		if (!create || (page=page_alloc(ALLOC_ZERO))==NULL)
+			return NULL;
+			
+		else{ //create page
+			//on this position of the pgdir
+			//assigns the physical page for page
+			//with the permissions it needs
+			
+			//page2pa devuelve physical adress asociada
+			//está bien usar?
+			
+			pgdir[PDX(va)] = ????? ;
+			
+			page -> pp_ref++; //increase
+		}
+	}
+	
+	?????????? ; //obtain the virtual address
+											//of the page?????
+	
+	return ???????; //page table entry pointer
 }
 
 //
@@ -906,4 +937,5 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
+
 
