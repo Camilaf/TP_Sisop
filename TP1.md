@@ -42,7 +42,7 @@ Encabezados de Sección:
 
 
 La sección .bss comienza en 0xf0113300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0113950. 
-Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0113950 y múltiplo de 4096. El valor buscado es 0xf0114000, que será la primera direción de memoria que devolverá boot_alloc.
+Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0113950 y múltiplo de 4096. El valor buscado es 0xf0114000, que será la primera dirección de memoria que devolverá boot_alloc.
 
 b)
 
