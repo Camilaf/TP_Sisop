@@ -324,6 +324,11 @@ page_alloc(int alloc_flags)
 	// Remove from page_free_list.
 	// Assign next page
 	page_free_list = result->pp_link;
+	
+	if (alloc_flags & ALLOC_ZERO) {
+		char *kva = page2kva(result);
+		memset(kva, '\0', PGSIZE);
+	}
 
 	
 return result;
