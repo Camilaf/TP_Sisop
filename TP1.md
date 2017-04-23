@@ -13,7 +13,7 @@ page2pa(struct PageInfo *pp)
 
 Donde:
 pp apunta a la información de la página (el struct)
-pages guarda el estado de cada página física
+pages apunta al array que contiene el estado de cada página física
 PGSHIFT = 12 (definición en mmu.h)
 
 Lo que hace la función es, a partir de un puntero a PageInfo, obtener la dirección física de la página a la que se refiere.
@@ -86,8 +86,8 @@ Definición de page2kva en pmap.h:
 		return KADDR(page2pa(pp));
 	}
 
-La función page2pa traduce a dirección física la estructura PageInfo. Guarda esa informaciòn en *pp.
-Con page2kva se obtiene la dirección virtual (virtual adress) asociada a esa dirección física *pp.
+La función page2pa traduce a dirección física la página correspondiente a la estructura PageInfo. Guarda esa informaciòn en *pp.
+Con page2kva se obtiene la dirección virtual (virtual address) asociada a esa dirección física (obtenida mediante page2pa). Para ello utiliza la macro KADDR(pa), que toma una dirección física (physical address) y devuelve la dirección virtual del kernel correspondiente. 
 Esa es la principal diferencia entre las funciones.
 
 
