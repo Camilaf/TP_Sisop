@@ -82,17 +82,13 @@ page_alloc
 ----------
 Definición de page2kva en pmap.h:
 
-	static inline void* page2kva(struct PageInfo *pp){
+	static inline void* page2kva(struct PageInfo *pp) {
 		return KADDR(page2pa(pp));
 	}
 
-	static inline void* _kaddr(const char *file, int line, physaddr_t pa){
-		if (PGNUM(pa) >= npages)
-			_panic(file, line, "KADDR called with invalid pa %08lx", pa);
-		return (void *)(pa + KERNBASE);
-	}
+La función page2pa traduce a dirección física la estructura PageInfo. Guarda esa informaciòn en *pp.
+Con page2kva se obtiene la dirección virtual (virtual adress) asociada a esa dirección física *pp.
+Esa es la principal diferencia entre las funciones.
 
-page2kva hace un llamado a kaddr que, internamente devuelve pa+kernbase -> con pa, el resultado del llamado a page2pa 
 
-VERIFICAAAAAAAAAAAAAR
 
