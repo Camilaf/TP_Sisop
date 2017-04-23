@@ -315,8 +315,18 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+	struct Page *result = page_free_list;
+
+	// There is not free page
+	if (!result)
+		return NULL;
+
+	// Remove from page_free_list.
+	// Assign next page
+	page_free_list = result->pp_link;
+
+	
+return result;
 }
 
 //
@@ -880,4 +890,6 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
+
+
 
