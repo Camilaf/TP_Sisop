@@ -108,7 +108,7 @@ boot_alloc(uint32_t n)
 		
 		nextfree += ROUNDUP(n, PGSIZE);	
 		// Falta panic!!
-		if ((uintptr_t)nextfree >= npages*PGSIZE){
+		if ((uintptr_t)nextfree >= (npages*PGSIZE+KERNBASE)){
 			panic("boot_alloc: out of memory\n");
 		}
 	}
