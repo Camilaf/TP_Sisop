@@ -86,7 +86,7 @@ Definición de page2kva en pmap.h:
 		return KADDR(page2pa(pp));
 	}
 
-La función page2pa traduce a dirección física la página correspondiente a la estructura PageInfo. Guarda esa informaciòn en *pp.
+La función page2pa devuelve la dirección física de la página asociada a la estructura PageInfo. Guarda esa informaciòn en *pp.
 Con page2kva se obtiene la dirección virtual (virtual address) asociada a esa dirección física (obtenida mediante page2pa). Para ello utiliza la macro KADDR(pa), que toma una dirección física (physical address) y devuelve la dirección virtual del kernel correspondiente. 
 Esa es la principal diferencia entre las funciones.
 
