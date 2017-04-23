@@ -315,7 +315,7 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	struct Page *result = page_free_list;
+	struct PageInfo *result = page_free_list;
 
 	// There is not free page
 	if (!result)
@@ -344,12 +344,22 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+
+	if (pp->pp_ref != 0 || pp->pp_link != NULL){
+		panic("page_free: could not free page!");        
+	}
+	//the freed page is linked to the first one in
+	// page_free_list and now it points to the freed one
+
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
 }
 
 //
 // Decrement the reference count on a page,
 // freeing it if there are no more refs.
 //
+
 void
 page_decref(struct PageInfo* pp)
 {
@@ -895,6 +905,5 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
-
 
 
