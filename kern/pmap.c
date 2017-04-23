@@ -332,7 +332,7 @@ page_alloc(int alloc_flags)
 	}
 
 	
-return result;
+	return result;
 }
 
 //
