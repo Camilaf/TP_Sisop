@@ -279,11 +279,25 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	for (i = 0; i < npages; i++) {
+	for (i = 1; i < npages_basemem; i++) { // 1) i = 1 because 0 in use (so not add)
+		// 2)		
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+	
+	//3) IO not allocated
+	
+	//4) after boot alloc
+	
+	i = PGNUM(PADDR(boot_alloc(0)));  //Find
+	
+	for(;i<npages;i++){
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = page_free_list;
+		page_free_list = &pages[i];			
+	}
+	
 }
 
 //
