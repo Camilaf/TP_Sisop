@@ -41,7 +41,7 @@ Encabezados de Sección:
   [10] .strtab           STRTAB          00000000 015bf4 0004b0 00      0   0  1
 
 
-La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. 
+La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. Ésta será la dirección a la que apunta end. 
 Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0114950 y múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
 
 b. 
@@ -60,8 +60,8 @@ Breakpoint 1, boot_alloc (n=<unknown type>) at kern/pmap.c:86
 86	{
 (gdb) print nextfree
 $1 = 0x0
-(gdb) print end
-$2 = 65554
+(gdb) print (char *) &end
+$7 = 0xf0114950 "\022"
 (gdb) b 97
 Punto de interrupción 2 at 0xf0100af1: file kern/pmap.c, line 97.
 (gdb) c
@@ -75,17 +75,7 @@ Breakpoint 2, boot_alloc (n=<unknown type>) at kern/pmap.c:97
 105		result = nextfree;
 (gdb) print nextfree
 $4 = 0xf0115000 ""
-(gdb) b 119
-Punto de interrupción 3 at 0xf0100b47: file kern/pmap.c, line 119.
-(gdb) c
-Continuando.
-=> 0xf0100b47 <boot_alloc+97>:	repz ret 
 
-Breakpoint 3, boot_alloc (n=<unknown type>) at kern/pmap.c:119
-119	}
-(gdb) print nextfree
-$6 = 0xf0116000 ""
-(gdb) 
 
 
 page_alloc
