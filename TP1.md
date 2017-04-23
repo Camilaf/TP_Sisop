@@ -80,7 +80,24 @@ $4 = 0xf0115000 ""
 
 page_alloc
 ----------
+Definición de page2kva en pmap.h:
 
-...
+static inline void*
 
+page2kva(struct PageInfo *pp){
+	
+	return KADDR(page2pa(pp));
+}
+
+Y 
+
+static inline void*
+_kaddr(const char *file, int line, physaddr_t pa){
+	if (PGNUM(pa) >= npages)
+		_panic(file, line, "KADDR called with invalid pa %08lx", pa);
+	return (void *)(pa + KERNBASE);
+}
+
+page2kva hace un llamado a kaddr que, internamente devuelve pa+kernbase -> con pa, el resultado del llamado a page2pa 
+VERIFICAAAAAAAAAAAAAR
 
