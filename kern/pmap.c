@@ -114,8 +114,7 @@ boot_alloc(uint32_t n)
 	}
 
 	return result;
-		
-	//return NULL;
+	
 }
 
 // Set up a two-level page table:
@@ -394,38 +393,34 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-
-	struct PageInfo *page;
-	if (pgdir[PDX(va)]) //pdx obtains directory index of va
+	pte_t *pte;
+	if (pgdir[PDX(va)] & PTE_P) //PDX obtains page directory index of va
 						//PTE_ADDR obtains the address
 						//of the page
-						
-		//pa2page returns a PageInfo* related to that address			
-		page = pa2page(PTE_ADDR(pgdir[PDX(va)])); //
+						//KADDR obtains the kernel
+						//virtual address
+		pte = KADDR(PTE_ADDR(pgdir[PDX(va)])); 
 		
 	else{ //if create = FALSE or page_alloc does not "work"
-		if (!create || (page=page_alloc(ALLOC_ZERO))==NULL)
+		struct PageInfo* page;
+		if (!create || !(page = page_alloc(ALLOC_ZERO)))
 			return NULL;
 			
 		else{ //create page
-			//on this position os the pgdir
-			//assigns the physical page for page
+			//on this position of the pgdir
+			//assign the physical page for page
 			//with the permissions it needs
 			
 			//page2pa returns physical adress 
 			
 			pgdir[PDX(va)] = page2pa(page) | PTE_P | PTE_W | PTE_U;
-			page -> pp_ref++; //increase
+			page->pp_ref++; //increase
+			pte = page2kva(page);
 		}
 	}
 	
-	//Acà ya existe la pagina
-	//quiero devolver puntero a entrada
-	
-	pte_t *entry = ????? ; //obtain the virtual address
-											//of the page with kva
-												
-	return ?????? ; //page table entry pointer
+	//PTX obtains page table index of va
+	return pte + PTX(va); //page table entry pointer
 }
 
 //
