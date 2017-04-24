@@ -519,7 +519,7 @@ page_remove(pde_t *pgdir, void *va)
 	// Fill this function in
 	
 	pte_t *pte;
-	struct Page *page = page_lookup(pgdir, va, &pte);
+	struct PageInfo *page = page_lookup(pgdir, va, &pte);
 
 	// Physical page not exist, so do nothing.
 	if (!pte || !(*pte & PTE_P))
