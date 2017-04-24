@@ -517,6 +517,23 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	
+	pte_t *pte;
+	struct Page *page = page_lookup(pgdir, va, &pte);
+
+	// Physical page not exist, so do nothing.
+	if (!pte || !(*pte & PTE_P))
+		return;
+
+	// Decrement reference count.
+	page_decref(page);
+
+	// PTE set to 0.
+	*pte = 0;
+
+	//TLB invalidation
+	tlb_invalidate(pgdir, va);
+	
 }
 
 //
@@ -940,6 +957,8 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
+
+
 
 
 
