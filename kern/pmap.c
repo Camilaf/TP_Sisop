@@ -434,10 +434,27 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // mapped pages.
 //
 // Hint: the TA solution uses pgdir_walk
+
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+	while (size >= PGSIZE){
+	
+		// find pte
+		pte_t *pte = pgdir_walk(pgdir, (void *)va,1);	
+	
+		/*if (!pte)
+			panic("boot_map_region: what?");
+		*/
+		
+		//associate.
+		*pte = pa| perm | PTE_P;
+	
+		//go to next page
+		va += PGSIZE;
+		pa += PGSIZE;
+		size -= PGSIZE;
+	}
 }
 
 //
