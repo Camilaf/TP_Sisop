@@ -187,7 +187,7 @@ mem_init(void)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
 	
-	//boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 	
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -201,7 +201,7 @@ mem_init(void)
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
 
-	//boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 	
 	/* Ailu: PTE_W controls wheter instructions are allowed to issue writes to the page; if not set, only reads and instruction fetches
 	 * are allowed. PTE_U controls wheter user programs are allowed to use the page; if clear, only the kernel is allowed to use the page.
@@ -218,7 +218,7 @@ mem_init(void)
 	
 	//0-kernbase?????
 	
-	//boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -468,8 +468,23 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	// Fill this function in
-	return 0;
+	pte_t *pte = pgdir_walk(pgdir,va,1);
+	
+	if (!pte)
+		return -E_NO_MEM; //page could not be allocated
+
+	
+	pp->pp_ref++; // increment	
+	
+	if (*pte & PTE_P){ //if present 
+		page_remove(pgdir,va); // remove the page already allocated
+	}
+		
+	//new permissions.
+	*pte = page2pa(pp)| perm | PTE_P;
+	
+	return 0; //return on success
+
 }
 
 //
@@ -957,8 +972,6 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
-
-
 
 
 
