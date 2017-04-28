@@ -203,10 +203,6 @@ mem_init(void)
 
 	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 	
-	/* Ailu: PTE_W controls wheter instructions are allowed to issue writes to the page; if not set, only reads and instruction fetches
-	 * are allowed. PTE_U controls wheter user programs are allowed to use the page; if clear, only the kernel is allowed to use the page.
-	 * ¿Cuál iría? ¿Antes es PTE_U o cual?*/
-
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -215,9 +211,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	
-	//0-kernbase?????
-	
+
 	boot_map_region(kern_pgdir, KERNBASE, -KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
@@ -443,10 +437,6 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 
 		// find pte
 		pte_t *pte = pgdir_walk(pgdir, (void *)va, 1);	
-	
-		/*if (!pte)
-			panic("boot_map_region: what?");
-		*/
 		
 		//associate.
 		*pte = pa | perm | PTE_P;
