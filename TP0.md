@@ -16,5 +16,4 @@ K> backtrace
          kern/init.c:43: i386_init+77
   ebp f010fff8  eip f010003e  args 00111021 00000000 00000000 00000000 00000000
          kern/entry.S:83: <unknown>+0
-
 ```
