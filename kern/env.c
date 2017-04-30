@@ -120,6 +120,7 @@ env_init(void)
 		envs[i].env_link = env_free_list;
 		env_free_list = &envs[i];
 	}
+	
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
