@@ -15,23 +15,29 @@ index 33caa53..d639dc6 100644
 +
 +González Pérez, Ailén Yamila
 diff --git a/TP1.md b/TP1.md
-index b9406e3..74c42bf 100644
+index 4b64f1f..c6c149b 100644
 --- a/TP1.md
 +++ b/TP1.md
-@@ -13,21 +13,82 @@ page2pa(struct PageInfo *pp)
+@@ -3,19 +3,91 @@ TP1: Memoria virtual en JOS
  
- Donde:
- pp apunta a la información de la página (el struct)
--pages guarda el estado de cada página física
--PGSHIFT = ?  (NO ENCONTRÉ LA DEFINICIÓN DEL VALOR)
+ page2pa
+ -------
++Definición de la función:
+ 
+-...
++static inline physaddr_t
++page2pa(struct PageInfo *pp)
++{
++	return (pp - pages) << PGSHIFT;
++}
+ 
++Donde:
++pp apunta a la información de la página (el struct)
 +pages apunta al array que contiene el estado de cada página física
 +PGSHIFT = 12 (definición en mmu.h)
- 
--Al puntero del cual queremos hallar la página física (pp) le resta el inicio del arreglo de physical pages porque este inicio estàn en igual valor de dirección virtual y física -> indica la base.
--Obtenemos el valor de página física y shiftea para para ¿¿¿¿¿ir al inicio de la pàgina hallada?????
-+Lo que hace la función es, a partir de un puntero a PageInfo, obtener la dirección física de la página a la que se refiere.
-+Al puntero del cual queremos hallar la página física (pp) le resta el inicio del arreglo de physical pages.
-+Obtenemos el número de la página física y shiftea para obtener la dirección de la página física. Hacer el shift de 12 bits es equivalente a multiplicar el número de página por 4096, que corresponde al tamaño de cada página en bytes.
++
++Lo que hace la función es, a partir de un puntero a PageInfo, obtener la dirección física de la página a la que se refiere. A ese puntero (pp) le resta la dirección de inicio del arreglo de physical pages. Se obtiene a partir de esa resta el número de la página física asociada al struct PageInfo apuntado por pp y se shiftea para obtener la dirección de esa página física. 
++Hacer el shift de 12 bits es equivalente a multiplicar el número de página por 4096, que corresponde al tamaño de cada página en bytes.
  
  boot_alloc_pos
  --------------
@@ -54,8 +60,8 @@ index b9406e3..74c42bf 100644
 +  [10] .strtab           STRTAB          00000000 015bf4 0004b0 00      0   0  1
 +
 +
-+La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. Ésta será la dirección a la que apunta end. 
-+Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0114950 y múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
++La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. Ésta será la dirección apuntada por end. 
++Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible que sea mayor a 0xf0114950 y a su vez, múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
 +
 +b. 
 +$ make gdbgdb -q -s obj/kern/kernel -ex 'target remote 127.0.0.1:26000' -n -x .gdbinit
@@ -100,8 +106,8 @@ index b9406e3..74c42bf 100644
 +		return KADDR(page2pa(pp));
 +	}
 +
-+La función page2pa devuelve la dirección física de la página asociada a la estructura PageInfo. Guarda esa informaciòn en *pp.
-+Con page2kva se obtiene la dirección virtual (virtual address) asociada a esa dirección física (obtenida mediante page2pa). Para ello utiliza la macro KADDR(pa), que toma una dirección física (physical address) y devuelve la dirección virtual del kernel correspondiente. 
++La función page2pa devuelve la dirección física (physical address) de la página asociada al struct PageInfo apuntado por el parámetro.
++Con page2kva se obtiene la dirección virtual (virtual address) de la página física cuya información se guarda en el struct PageInfo *pp. Para ello utiliza la macro KADDR(pa), que toma una dirección física (obtenida mediante page2pa en la función mostrada) y devuelve su dirección virtual del kernel. 
 +Esa es la principal diferencia entre las funciones.
  
 -...
@@ -109,7 +115,7 @@ index b9406e3..74c42bf 100644
  
 diff --git a/__pycache__/gradelib.cpython-35.pyc b/__pycache__/gradelib.cpython-35.pyc
 new file mode 100644
-index 0000000..dfeabe1
+index 0000000..4d21911
 Binary files /dev/null and b/__pycache__/gradelib.cpython-35.pyc differ
 diff --git a/grade-lab2 b/grade-lab2
 old mode 100644

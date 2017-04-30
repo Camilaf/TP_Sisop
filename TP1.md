@@ -16,9 +16,8 @@ pp apunta a la información de la página (el struct)
 pages apunta al array que contiene el estado de cada página física
 PGSHIFT = 12 (definición en mmu.h)
 
-Lo que hace la función es, a partir de un puntero a PageInfo, obtener la dirección física de la página a la que se refiere.
-Al puntero del cual queremos hallar la página física (pp) le resta el inicio del arreglo de physical pages.
-Obtenemos el número de la página física y shiftea para obtener la dirección de la página física. Hacer el shift de 12 bits es equivalente a multiplicar el número de página por 4096, que corresponde al tamaño de cada página en bytes.
+Lo que hace la función es, a partir de un puntero a PageInfo, obtener la dirección física de la página a la que se refiere. A ese puntero (pp) le resta la dirección de inicio del arreglo de physical pages. Se obtiene a partir de esa resta el número de la página física asociada al struct PageInfo apuntado por pp y se shiftea para obtener la dirección de esa página física. 
+Hacer el shift de 12 bits es equivalente a multiplicar el número de página por 4096, que corresponde al tamaño de cada página en bytes.
 
 boot_alloc_pos
 --------------
@@ -41,8 +40,8 @@ Encabezados de Sección:
   [10] .strtab           STRTAB          00000000 015bf4 0004b0 00      0   0  1
 
 
-La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. Ésta será la dirección a la que apunta end. 
-Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible, que sea mayor a 0xf0114950 y múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
+La sección .bss comienza en 0xf0114300 y tiene un tamaño de 0x000650. La suma entre estos valores corresponde a la dirección en donde termina el segmento: 0xf0114950. Ésta será la dirección apuntada por end. 
+Como el valor obtenido no es múltiplo de 4096, lo que haremos es encontrar el menor valor posible que sea mayor a 0xf0114950 y a su vez, múltiplo de 4096. El valor buscado es 0xf0115000, que será la primera dirección de memoria que devolverá boot_alloc.
 
 b. 
 $ make gdbgdb -q -s obj/kern/kernel -ex 'target remote 127.0.0.1:26000' -n -x .gdbinit
@@ -86,8 +85,8 @@ Definición de page2kva en pmap.h:
 		return KADDR(page2pa(pp));
 	}
 
-La función page2pa devuelve la dirección física de la página asociada a la estructura PageInfo. Guarda esa informaciòn en *pp.
-Con page2kva se obtiene la dirección virtual (virtual address) asociada a esa dirección física (obtenida mediante page2pa). Para ello utiliza la macro KADDR(pa), que toma una dirección física (physical address) y devuelve la dirección virtual del kernel correspondiente. 
+La función page2pa devuelve la dirección física (physical address) de la página asociada al struct PageInfo apuntado por el parámetro.
+Con page2kva se obtiene la dirección virtual (virtual address) de la página física cuya información se guarda en el struct PageInfo *pp. Para ello utiliza la macro KADDR(pa), que toma una dirección física (obtenida mediante page2pa en la función mostrada) y devuelve su dirección virtual del kernel. 
 Esa es la principal diferencia entre las funciones.
 
 
