@@ -161,14 +161,17 @@ mem_init(void)
 	//Use memset to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
-	
-	pages = (struct PageInfo *) boot_alloc(npages*sizeof(struct PageInfo));
-	memset(pages, 0, sizeof(struct PageInfo)*npages);
+	uint32_t pages_size = npages * sizeof(struct PageInfo);
+	pages = boot_alloc(pages_size);
+	memset(pages, 0, pages_size);
 
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
 
+	uint32_t envs_size = NENV * sizeof(struct Env);
+	envs = boot_alloc(envs_size);
+	memset(envs, 0, envs_size);
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
@@ -203,6 +206,8 @@ mem_init(void)
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
 
+	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
+	
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
