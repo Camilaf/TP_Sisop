@@ -58,6 +58,7 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
+	// Your code here.
 	int *ebp =(int *) read_ebp();
 	struct Eipdebuginfo info;
 	
