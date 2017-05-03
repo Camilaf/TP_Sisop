@@ -109,7 +109,7 @@ boot_alloc(uint32_t n)
 		
 		nextfree += ROUNDUP(n, PGSIZE);	
 		
-		if ((uintptr_t)nextfree >= (npages*PGSIZE+KERNBASE)){
+		if ((uintptr_t) nextfree >= (npages*PGSIZE + KERNBASE)){
 			panic("boot_alloc: out of memory\n");
 		}
 	}
@@ -527,7 +527,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	pte_t *pte = pgdir_walk(pgdir,va,1);
+	pte_t *pte = pgdir_walk(pgdir, va, 1);
 	
 	if (!pte)
 		return -E_NO_MEM; //page could not be allocated

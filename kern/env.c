@@ -274,6 +274,20 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	
+	va = ROUNDDOWN(va, PGSIZE);
+	void *dirFinal = ROUNDUP(va + len, PGSIZE);
+	
+	while (va < dirFinal) {
+		// We don't initialize the page 
+		struct PageInfo *pp = page_alloc(~ALLOC_ZERO);
+		
+		if (!pp)
+			panic("region_alloc: could not create page, out of free memory\n");
+			
+		page_insert(e->env_pgdir, pp, va, PTE_W | PTE_U);
+		va += PGSIZE;
+	}
 }
 
 //
