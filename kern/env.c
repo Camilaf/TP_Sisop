@@ -278,6 +278,9 @@ region_alloc(struct Env *e, void *va, size_t len)
 	va = ROUNDDOWN(va, PGSIZE);
 	void *dirFinal = ROUNDUP(va + len, PGSIZE);
 	
+	if (len == 0)
+		return;
+	
 	while (va < dirFinal) {
 		// We don't initialize the page 
 		struct PageInfo *pp = page_alloc(~ALLOC_ZERO);
@@ -344,11 +347,35 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
+	struct Elf *bin = (struct Elf *) binary;
+	// is this a valid ELF?
+	if (bin->e_magic != ELF_MAGIC)
+		panic("load_icode: 'binary' is not a valid ELF binary\n");
+		
+	if (!e)
+		panic("load_icode: there is no environment\n");
+	
+	// We look for the position of the program header
+	struct Proghdr *progHeader = (struct Proghdr *) (binary + bin->e_phoff);
+	
+	for(int i = 0; i < bin->e_phnum; i++) {
+		if (progHeader->p_type == ELF_PROG_LOAD) {
+			region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
+			memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
+			memset((void *) progHeader->p_va + progHeader->p_filesz, 0, progHeader->p_memsz - progHeader->p_filesz);
+		}
+		
+		progHeader += bin->e_phentsize;
+	}
+	
+	// Intruction pointer equal to the program's entry point
+	e->env_tf.tf_eip = bin->e_entry;
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	region_alloc(e, (void *) (USTACKTOP - PGSIZE), PGSIZE);
 }
 
 //
