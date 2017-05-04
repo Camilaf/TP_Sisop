@@ -84,9 +84,56 @@ Hacemos el "or" entre e-envs y generation, obteniendo
 
     	env_id(5) = 0x00001100
 
-b)
+b) En principio, siguiendo la idea del punto 1a, concluimos que: 
+	
+	env_id(ejecución_1) = 0x00001000 | 0x00000276 = 0x00001276
 
-2)
+Al liberar el proceso, como todos están en ejecución (no hay otro espacio), la siguiente ejecución, va a tomar el slot que quedó disponible, manteniendo el offset con respecot a envs, ya que en env_free se lo pone primero en env_free_list, pero no se pone a env_id nuevamente en 0.
+Siguiendo con esta idea:
+
+- Segunda ejecución
+
+Calculamos generation:
+	
+	generation = ( 0x00001276 + 0x1000 ) & ~(0x000003ff) = 0x00002276 & 0x11111C00 = 0x00002000
+	
+En consecuencia:
+	
+	e->env_id(ejecución_2) = 0x00002276
+	
+- Tercera ejecución
+
+
+Calculamos generation:
+	
+	generation = ( 0x00002276 + 0x1000 ) & ~(0x000003ff) = 0x00003276 & 0x11111C00 = 0x00003000
+	
+En consecuencia:
+	
+	e->env_id(ejecución_3) = 0x00003276
+	
+- Cuarta ejecución
+
+Calculamos generation:
+	
+	generation = ( 0x00003276 + 0x1000 ) & ~(0x000003ff) = 0x00004276 & 0x11111C00 = 0x00004000
+	
+En consecuencia:
+	
+	e->env_id(ejecución_4) = 0x00004276
+	
+- Quinta ejecución
+
+Calculamos generation:
+	
+	generation = ( 0x00004276 + 0x1000 ) & ~(0x000003ff) = 0x00005276 & 0x11111C00 = 0x00005000
+	
+En consecuencia:
+	
+	e->env_id(ejecución_5) = 0x00005276
+	
+
+2) 
 
 
 env_init_percpu
