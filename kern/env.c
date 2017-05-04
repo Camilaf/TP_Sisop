@@ -113,7 +113,7 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-	
+
 	for (int i = NENV - 1; i >= 0; i--) {
 		envs[i].env_status = ENV_FREE;
 		envs[i].env_id = 0;
@@ -186,7 +186,7 @@ env_setup_vm(struct Env *e)
 	
 	e->env_pgdir = page2kva(p);
 	p->pp_ref++;
-	memcpy(e->env_pgdir, kern_pgdir, PTSIZE);
+	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -357,15 +357,16 @@ load_icode(struct Env *e, uint8_t *binary)
 	
 	// We look for the position of the program header
 	struct Proghdr *progHeader = (struct Proghdr *) (binary + bin->e_phoff);
+	lcr3(PADDR(e->env_pgdir));
 	
 	for(int i = 0; i < bin->e_phnum; i++) {
 		if (progHeader->p_type == ELF_PROG_LOAD) {
 			region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
 			memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
-			memset((void *) progHeader->p_va + progHeader->p_filesz, 0, progHeader->p_memsz - progHeader->p_filesz);
+			memset((void *) (progHeader->p_va + progHeader->p_filesz), 0, progHeader->p_memsz - progHeader->p_filesz);
 		}
 		
-		progHeader += bin->e_phentsize;
+		progHeader++;
 	}
 	
 	// Intruction pointer equal to the program's entry point
@@ -389,6 +390,13 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+	int err = env_alloc(&e, 0);
+	if (err < 0)
+		panic("env_create: %e", err);
+		
+	load_icode(e, binary);
+	e->env_type = type;
 }
 
 //
@@ -506,5 +514,19 @@ env_run(struct Env *e)
 
 	// LAB 3: Your code here.
 
-	panic("env_run not yet implemented");
+	if (!e)
+		panic("env_run: there is no environment\n");
+		
+	// Step 1
+	if (curenv && (curenv->env_status == ENV_RUNNING)) 
+		curenv->env_status = ENV_RUNNABLE;
+	
+	curenv = e;
+	e->env_status = ENV_RUNNING;
+	e->env_runs++;
+	lcr3(PADDR(e->env_pgdir));
+	
+	// Step 2
+	env_pop_tf(&(e->env_tf));
+	
 }
