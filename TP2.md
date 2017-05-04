@@ -3,9 +3,7 @@ TP2: Procesos de usuario
 
 env_alloc
 ---------
-1)
-
-a) Porción de código a considerar para la generación del id del proceso:
+1. Porción de código a considerar para la generación del id del proceso:
 
 	// Generate an env_id for this environment.
 	generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
@@ -84,7 +82,7 @@ Hacemos el "or" entre e-envs y generation, obteniendo
 
     	env_id(5) = 0x00001100
 
-b) En principio, siguiendo la idea del punto 1a, concluimos que: 
+2. En principio, siguiendo la idea del punto 1a, concluimos que: 
 	
 	env_id(ejecución_1) = 0x00001000 | 0x00000276 = 0x00001276
 
@@ -133,13 +131,26 @@ En consecuencia:
 	e->env_id(ejecución_5) = 0x00005276
 	
 
-2) 
-
 
 env_init_percpu
 ---------------
 
-...
+
+a. La función lgdt carga en el GDTR (Global Descriptor Table Register) los valores ubicados en el operando. Como el registro es de 48 bits, escribe 6 bytes en el mismo.
+
+En env.c, la función env_init_percpu llama a lgdt(&gdt_pd).
+Donde gdt_pd se trata de un struct Pseudodesc gdt_pd, cuyo tamaño es de 6 bytes.
+
+b. Esos bytes representan el tamaño y ubicación de la Global Descriptor Table (GDT): los 16 bits menos significativos contienen el tamaño, mientras que en los 32 bits más significativos se encuentra la ubicación de la GDT en memoria.
+
+Para verificar lo mencionado buscamos la definición de los valores que se cargan, y del struct: 
+struct Pseudodesc gdt_pd = { sizeof(gdt) - 1, (unsigned long) gdt };
+struct Pseudodesc {
+	uint16_t pd_lim;		// Limit
+	uint32_t pd_base;		// Base address
+}
+
+c. 
 
 
 env_pop_tf
