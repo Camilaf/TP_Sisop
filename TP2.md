@@ -5,33 +5,51 @@ env_alloc
 ---------
 1)
 
-Para el primer proceso:
+Porción de código a considerar para la generación del id del proceso:
 
-Con e->env_id obtenes un 0
+// Generate an env_id for this environment.
+generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
+if (generation <= 0)  // Don't create a negative env_id.
+	generation = 1 << ENVGENSHIFT;
+e->env_id = generation | (e - envs);
+
+Donde 
+ENVGENSHIFT = 12
+NENV = 1024
+
+- Para el primer proceso:
+
+e->env_id es igual a 0
 (1 << 12) es 4096 (0x1000)
-~(NENV - 1) es -1023 (NENV = 1024)
+~(NENV - 1) es ~(0x3ff) = 0xfffffc00
 
 Combinando todo:
 
-    0+ ( 4096 & - (1023) ) hace que generation = 4096 = 0x1000
+    0x00000000 + ( 0x1000 & 0xfffffc00) hace que generation = 0x00001000
 
 Como generation es mayor a 0, no entro al if.
-Luego, e-envs = proceso - lista_de_procesos (lo que apuntan).
+Luego, e-envs = dirección proceso - dirección lista_de_procesos (Como ambos son punteros a struct Env, la resta en cada caso dará el número de proceso).
 Aquí, e-envs = 0.
 
-Entonces el env_id = 4096 para el primer proceso 
+Entonces el env_id = 0x00001000 | 0x0 para el primer proceso 
 
-    env_id(1) = 0x1000
+    env_id(1) = 0x00001000
 
-Segundo proceso
+- Segundo proceso
 
-e->env_id = 0x1000  (CHEQUEAR SI VA A DAR EL ANTERIOR O UN 0. NO ENTIENDO BIEN).
+e->env_id = 0x00000000
 
-    0x1000 + 0x1000 & - (0x3ff) = 8192 = 0x2000 = generation
+    0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
 
-e - envs = ??
+e - envs = 0x00000001
 
-    env_id(2) = ?
+    env_id(2) = 0x00001001
+    
+(   ESCRIBIR LINDO DESPUES:
+El resto de los procesos: 
+env_id(3) = 0x00001010
+env_id(4) = 0x00001011
+env_id(5) = 0x00001100  )
 
 2)
 
@@ -202,6 +220,14 @@ Se asume que la arquitectura objetivo es i8086
 [f000:e05b]    0xfe05b:	cmpl   $0x0,%cs:0x70c8
 0x0000e05b in ?? ()
 (gdb) 
+
+[ Agregando -no-reboot me   queda: 
+(gdb) si 4
+=> 0x800a10 <syscall+29>:	int    $0x30
+0x00800a10	23		asm volatile("int %1\n"
+(gdb) stepi
+Conexión remota cerrada ] Cual iria?
+
 
 (qemu) info registers
 EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
