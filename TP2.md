@@ -5,33 +5,34 @@ env_alloc
 ---------
 1)
 
-Porción de código a considerar para la generación del id del proceso:
+a) Porción de código a considerar para la generación del id del proceso:
 
-// Generate an env_id for this environment.
-generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
-if (generation <= 0)  // Don't create a negative env_id.
-	generation = 1 << ENVGENSHIFT;
-e->env_id = generation | (e - envs);
+	// Generate an env_id for this environment.
+	generation = (e->env_id + (1 << ENVGENSHIFT)) & ~(NENV - 1);
+	if (generation <= 0)  // Don't create a negative env_id.
+		generation = 1 << ENVGENSHIFT;
+	e->env_id = generation | (e - envs);
 
-Donde 
-ENVGENSHIFT = 12
-NENV = 1024
+Donde: 
 
-- Para el primer proceso:
+	ENVGENSHIFT = 12
+	NENV = 1024
+	e->env_id = 0 (siempre se inicializa en 0)
+En consecuencia
 
-e->env_id es igual a 0
-(1 << 12) es 4096 (0x1000)
-~(NENV - 1) es ~(0x3ff) = 0xfffffc00
+	(1 << 12) = 4096 = 0x1000
+	~(NENV - 1) = ~(0x3ff) = 0xfffffc00
 
-Combinando todo:
+Se desarrolla a continuación el cálculo de e->env_id para los primeros cinco procesos.
 
-    0x00000000 + ( 0x1000 & 0xfffffc00) hace que generation = 0x00001000
+- Primer proceso:
 
+    0x00000000 + ( 0x1000 & 0xfffffc00) hace que generation = 0x00001000 
+    
 Como generation es mayor a 0, no entro al if.
-Luego, e-envs = dirección proceso - dirección lista_de_procesos (Como ambos son punteros a struct Env, la resta en cada caso dará el número de proceso).
-Aquí, e-envs = 0.
+Luego, e-envs = dirección proceso - dirección lista_de_procesos (Como ambos son punteros a struct Env, la resta en cada caso dará el número de proceso). Aquí, e-envs = 0.
 
-Entonces el env_id = 0x00001000 | 0x0 para el primer proceso 
+Entonces el env_id(1) = 0x00001000 | 0x0 
 
     env_id(1) = 0x00001000
 
@@ -39,17 +40,51 @@ Entonces el env_id = 0x00001000 | 0x0 para el primer proceso
 
 e->env_id = 0x00000000
 
-    0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
+    	0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
 
 e - envs = 0x00000001
+	
+Hacemos el "or" entre e-envs y generation, obteniendo
 
-    env_id(2) = 0x00001001
-    
-(   ESCRIBIR LINDO DESPUES:
-El resto de los procesos: 
-env_id(3) = 0x00001010
-env_id(4) = 0x00001011
-env_id(5) = 0x00001100  )
+    	env_id(2) = 0x00001001
+	
+- Tercer proceso
+
+e->env_id = 0x00000000
+
+    	0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
+
+e - envs = 0x00000010
+	
+Hacemos el "or" entre e-envs y generation, obteniendo
+
+    	env_id(3) = 0x00001010
+
+- Cuarto proceso
+
+e->env_id = 0x00000000
+
+    	0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
+
+e - envs = 0x00000011
+	
+Hacemos el "or" entre e-envs y generation, obteniendo
+
+    	env_id(4) = 0x00001011
+	
+- Quinto proceso
+
+e->env_id = 0x00000000
+
+    	0x00000000 + (0x1000 & ~0x3ff) = 0x00001000 = generation
+
+e - envs = 0x00000100
+	
+Hacemos el "or" entre e-envs y generation, obteniendo
+
+    	env_id(5) = 0x00001100
+
+b)
 
 2)
 
