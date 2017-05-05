@@ -42,9 +42,7 @@ e->env_id = 0x00000000
 
 e - envs = 0x00000001
 	
-Hacemos el "or" entre e-envs y generation, obteniendo
-
-    	env_id(2) = 0x00001001
+Hacemos or entre e-envs y generation, obteniendo env_id(2) = 0x00001001
 	
 - Tercer proceso
 
@@ -54,9 +52,7 @@ e->env_id = 0x00000000
 
 e - envs = 0x00000010
 	
-Hacemos el "or" entre e-envs y generation, obteniendo
-
-    	env_id(3) = 0x00001010
+Haciendo lo mismo que antes obtenemos env_id(3) = 0x00001010
 
 - Cuarto proceso
 
@@ -66,9 +62,7 @@ e->env_id = 0x00000000
 
 e - envs = 0x00000011
 	
-Hacemos el "or" entre e-envs y generation, obteniendo
-
-    	env_id(4) = 0x00001011
+Obtenemos env_id(4) = 0x00001011
 	
 - Quinto proceso
 
@@ -78,57 +72,38 @@ e->env_id = 0x00000000
 
 e - envs = 0x00000100
 	
-Hacemos el "or" entre e-envs y generation, obteniendo
-
-    	env_id(5) = 0x00001100
+Obtenemos env_id(5) = 0x00001100
 
 2. En principio, siguiendo la idea del punto 1a, concluimos que: 
 	
 	env_id(ejecución_1) = 0x00001000 | 0x00000276 = 0x00001276
 
-Al liberar el proceso, como todos están en ejecución (no hay otro espacio), la siguiente ejecución, va a tomar el slot que quedó disponible, manteniendo el offset con respecot a envs, ya que en env_free se lo pone primero en env_free_list, pero no se pone a env_id nuevamente en 0.
+Al liberar el proceso, como todos están en ejecución (no hay otro espacio), la siguiente ejecución, va a tomar el slot que quedó disponible, manteniendo el offset con respecot a envs, ya que en env_free lo pone primero en env_free_list, sin modificar env_id.
 Siguiendo con esta idea:
 
 - Segunda ejecución
 
-Calculamos generation:
+generation = ( 0x00001276 + 0x1000 ) & ~(0x000003ff) = 0x00002276 & 0xfffffC00 = 0x00002000
 	
-	generation = ( 0x00001276 + 0x1000 ) & ~(0x000003ff) = 0x00002276 & 0x11111C00 = 0x00002000
-	
-En consecuencia:
-	
-	e->env_id(ejecución_2) = 0x00002276
+En consecuencia: e->env_id(ejecución_2) = 0x00002276
 	
 - Tercera ejecución
 
-
-Calculamos generation:
+generation = ( 0x00002276 + 0x1000 ) & ~(0x000003ff) = 0x00003276 & 0xfffffC00 = 0x00003000
 	
-	generation = ( 0x00002276 + 0x1000 ) & ~(0x000003ff) = 0x00003276 & 0x11111C00 = 0x00003000
-	
-En consecuencia:
-	
-	e->env_id(ejecución_3) = 0x00003276
+En consecuencia: e->env_id(ejecución_3) = 0x00003276
 	
 - Cuarta ejecución
 
-Calculamos generation:
+Calculamos generation: generation = ( 0x00003276 + 0x1000 ) & ~(0x000003ff) = 0x00004276 & 0xfffffC00 = 0x00004000
 	
-	generation = ( 0x00003276 + 0x1000 ) & ~(0x000003ff) = 0x00004276 & 0x11111C00 = 0x00004000
-	
-En consecuencia:
-	
-	e->env_id(ejecución_4) = 0x00004276
+En consecuencia: e->env_id(ejecución_4) = 0x00004276
 	
 - Quinta ejecución
 
-Calculamos generation:
+generation = ( 0x00004276 + 0x1000 ) & ~(0x000003ff) = 0x00005276 & 0xfffffC00 = 0x00005000
 	
-	generation = ( 0x00004276 + 0x1000 ) & ~(0x000003ff) = 0x00005276 & 0x11111C00 = 0x00005000
-	
-En consecuencia:
-	
-	e->env_id(ejecución_5) = 0x00005276
+En consecuencia: e->env_id(ejecución_5) = 0x00005276
 	
 
 
@@ -249,7 +224,7 @@ Luego:
 0x00800020 corresponde a %eip: representa la siguiente intrucción a ejecutarse del proceso, el valor se asignó en load_icode: e->env_tf.tf_eip = bin->e_entry.
 0x001b corresponde al selector %cs: en binario, 0000000000011011, se puede ver que los últimos dos bits (3) corresponden al RPL, el bit siguiente (0) indica la tabla GDT,los siguientes bits indican el índice (3). Inicialmente se configuró en env_alloc: e->env_tf.tf_cs = GD_UT | 3.
 0x00000000 corresponde a %eflags: Es el registro en donde se almacenan en distintos bits los resultados de las operaciones y el estado del procesador. Inicialmente se configuró en env_alloc: memset(&e->env_tf, 0, sizeof(e->env_tf)).
-0xeebfe000 corresponde a %esp: Apunta al inicio del stack del programa de usuario. Inicialmente se configuró en env_alloc: e->env_tf.tf_esp = USTACKTOP.
+0xeebfe000 corresponde a %esp: Apunta al inicio del user stack. Inicialmente se configuró en env_alloc: e->env_tf.tf_esp = USTACKTOP.
 0x0023 corresponde al selector %ss: Ídem %es.
 
 8.
@@ -263,6 +238,10 @@ ESI=00000000 EDI=00000000 EBP=00000000 ESP=f01b7030
 EIP=f0102db8 EFL=00000096 [--S-AP-] CPL=0 II=0 A20=1 SMM=0 HLT=0
 ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
 CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
+
+En este punto de la función ya se recuperaron los registros de propósito general, y como puede verse sus valores coinciden con los mencionados en el punto anterior. Desde EAX hasta EBP, tienen valor 0x00000000. Por otro lado el stack apunta al valor de %eip a recuperar (0x00800020), esto se puede ver ya que en info registers figura ESP=f01b7030 y en lo que imprimos del stack se encuentra en esa posición el valor mencionado -> 0xf01b7030:	0x00800020.
+
+Por otro lado, el segment register CS se mantiene igual mientras que ES pasa de tener DPL (Descriptor Privilege Level) igual a 0, a DPL = 3 (user privilege level). Ya que a esa altura no se recuperó %cs pero sí %es. Antes ES tenía en sus primeros dos bytes 0010, por haberle cargado en env_init_percpu el valor GD_KD (kernel data). Ahora tiene 0023, debido a GD_UD | 3 (valor del %es recuperado), donde GD_UD es el global descriptor number para user data y 3 es el user mode. Ésto ocurre ya que para que un programa pueda acceder a un segmento, el segment selector debe haber sido cargado en el segment register (consistiría en la "visible part" del segment register, de acuerdo con el manual de Intel).
 
 9.
 (gdb) si
@@ -283,6 +262,10 @@ ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
 EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
 ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
 CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
+
+Ahora, como ya se ejecutó iret se recuperó el instruction pointer: ahora EIP=00800020, que justamente era el entry point asignado en load_icode. Como luego de esta instrucción se efectuó el context switch, CPL ahora vale 3. Como se pasó de un nivel de mayor privilegio (0) a uno de menor privilegio (3), iret también hizo pop de %esp y %ss: puede verse que ESP=eebfe000, valor mencionado en el ítem 7, correspondiente a USTACKTOP. 
+Por último, también se recuperó %cs: puede notarse que ahora el Descriptor Privilege Level de CS es de 3. Como se mencionó antes para el caso de es ES, antes CS tenía en sus primeros dos bytes 0008, por haber cargado en env_init_percpu el valor GD_KT (kernel text). Ahora figura 001b, correspondiente a GD_UT | 3 (valor del %cs recuperado), donde GD_UT corresponde a user text.
+
 
 10.
 (gdb) tbreak syscall
@@ -343,10 +326,12 @@ Se asume que la arquitectura objetivo es i8086
 0x0000e05b in ?? ()
 (gdb) 
 
-[ Agregando -no-reboot me   queda: 
+Agregando -no-reboot queda: 
 (gdb) si 4
 => 0x800a10 <syscall+29>:	int    $0x30
 0x00800a10	23		asm volatile("int %1\n"
 (gdb) stepi
-Conexión remota cerrada ] Cual iria?
+Conexión remota cerrada
 
+Luego de efectuar el cambio de contexto, se ejecuta el hello binary hasta la syscall. Ya que para hacer una system call, el programa debe invocar la instrucción int n, donde n es el índice de la IDT (Interrupt Descriptor Table). Pero como todavía no se efectuó el manejo de interrupciones, se genera una general protection (GP) exception. Como en la parte A no se configuró el manejo de excepciones, se genera una excepción double fault pero como tampoco se maneja, termina en triple fault. Colocando en el comando de makefile las opciones brindadas por la cátedra: -no-reboot y -d cpu_reset, en qemu.log aparece como mensaje final 'Triple fault'. Debido a la triple fault, la CPU hace reset y luego rebootea.
+Se puede notar que comienza la ejecución en Real Mode: toma como arquitectura objetivo i8086 y utiliza segmentación para obtener la dirección (en el rango de 1MB). Usa segment:offset.
