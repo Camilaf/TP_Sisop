@@ -161,6 +161,7 @@ env_pop_tf
 
 ¿Cómo puede determinar la CPU si hay un cambio de ring (nivel de privilegio)?
 Para cada nivel de privilegio (0 y 3) existe una pila de ejecución propia de ese nivel. Para la pila de privilegio 3, se guardan SS y ESP, los cuales automáticamente se salvan al llamar un proceso con mayor privilegio. En el caso de la pila de nivel 0, el puntero de esta se guarda en el TSS.
+Este manejo es invisible al proceso, excepto cuando hay una excepción por intentar acceder con derechos que no se tienen en ese proceso
 
 
 gdb_hello
