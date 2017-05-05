@@ -156,11 +156,15 @@ Cada procesador necesita su propio TSS (Task State Segment) descriptor, donde TS
 
 env_pop_tf
 ----------
-¿Qué hay en (%esp) tras el primer movl de la función?
+1. ¿Qué hay en (%esp) tras el primer movl de la función?
+El primer movl de la función (movl %0,%%esp) lo que hace es almacenar el primer argumento (correspondiente a tf), que es el puntero al struct Trapframe del proceso, en el registro %esp. Por lo cual, luego de ejecutar la instruc, %esp apunta al inicio del struct Trapframe asociado con el proceso. Específicamente, en (%esp) se encuentra el struct PushRegs tf_regs.
 
-¿Qué hay en (%esp) justo antes de la instrucción iret? ¿Y en 8(%esp)?
+2. ¿Qué hay en (%esp) justo antes de la instrucción iret? ¿Y en 8(%esp)?
+La función usa distintas instrucciones para restaurar los registros a partir del Trapframe: popal recupera los general registers, luego popl recupera %es y %ds. La instrucción addl "esquiva" los campos trapno y errcode. 
 
-¿Cómo puede determinar la CPU si hay un cambio de ring (nivel de privilegio)?
+Lo siguiente en el struct es tf_eip, por lo cual %esp apuntará al valor del instruction pointer, siendo (%esp) igual a la dirección de la siguiente instrucción a ser ejecutada. Si a %esp le sumamos 8 bytes, vamos a pasar por la dirección de tf_cs (que se encuentra a 4 bytes) para llegar a la dirección donde se encuentra tf_eflags. Entonces 8(%esp) corresponderá al valor de %eflags.
+
+3. ¿Cómo puede determinar la CPU si hay un cambio de ring (nivel de privilegio)?
 Para cada nivel de privilegio (0 y 3) existe una pila de ejecución propia de ese nivel. Para la pila de privilegio 3, se guardan SS y ESP, los cuales automáticamente se salvan al llamar un proceso con mayor privilegio. En el caso de la pila de nivel 0, el puntero de esta se guarda en el TSS.
 Este manejo es invisible al proceso, excepto cuando hay una excepción por intentar acceder con derechos que no se tienen en ese proceso
 
