@@ -238,8 +238,19 @@ End of assembler dump.
 0xf01b7030:	0x00800020	0x0000001b	0x00000000	0xeebfe000
 0xf01b7040:	0x00000023
 
-7.
+Comprobamos que son los mismos valores.
 
+7. Los primeros ocho valores, que tienen como valor 0x00000000, corresponden a los general purpose registers que se encuentran en el struct PushRegs tf_regs. El orden de los mismos es %edi, %esi, %ebp, %oesp, %ebx, %edx, %ecx y %eax.
+Luego:
+0x0023 corresponde al selector %es: en binario, 0000000000100011, se puede ver que los últimos dos bits (3) corresponden al RPL, el bit siguiente (0) indica la tabla GDT,los siguientes bits indican el índice (4). Inicialmente se configuró en env_alloc: e->env_tf.tf_es = GD_UD | 3.
+0x0023 corresponde al selector %ds: Ídem %es.
+0x00000000 corresponde a tf_trapno.
+0x00000000 corresponde a tf_err.
+0x00800020 corresponde a %eip: representa la siguiente intrucción a ejecutarse del proceso, el valor se asignó en load_icode: e->env_tf.tf_eip = bin->e_entry.
+0x001b corresponde al selector %cs: en binario, 0000000000011011, se puede ver que los últimos dos bits (3) corresponden al RPL, el bit siguiente (0) indica la tabla GDT,los siguientes bits indican el índice (3). Inicialmente se configuró en env_alloc: e->env_tf.tf_cs = GD_UT | 3.
+0x00000000 corresponde a %eflags: Es el registro en donde se almacenan en distintos bits los resultados de las operaciones y el estado del procesador. Inicialmente se configuró en env_alloc: memset(&e->env_tf, 0, sizeof(e->env_tf)).
+0xeebfe000 corresponde a %esp: Apunta al inicio del stack del programa de usuario. Inicialmente se configuró en env_alloc: e->env_tf.tf_esp = USTACKTOP.
+0x0023 corresponde al selector %ss: Ídem %es.
 
 8.
 (gdb) si 4
@@ -265,6 +276,13 @@ Leyendo símbolos desde obj/user/hello...hecho.
 Error in re-setting breakpoint 1: Función «env_pop_tf» no definida.
 (gdb) p $pc
 $3 = (void (*)()) 0x800020 <_start>
+
+(qemu) info registers
+EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
+ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
+EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
+ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
+CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
 
 10.
 (gdb) tbreak syscall
@@ -332,10 +350,3 @@ Se asume que la arquitectura objetivo es i8086
 (gdb) stepi
 Conexión remota cerrada ] Cual iria?
 
-
-(qemu) info registers
-EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
-ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
-EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
-ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
-CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
