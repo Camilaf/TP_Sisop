@@ -135,13 +135,12 @@ En consecuencia:
 env_init_percpu
 ---------------
 
-
 a. La función lgdt carga en el GDTR (Global Descriptor Table Register) los valores ubicados en el operando. Como el registro es de 48 bits, escribe 6 bytes en el mismo.
 
 En env.c, la función env_init_percpu llama a lgdt(&gdt_pd).
-Donde gdt_pd se trata de un struct Pseudodesc gdt_pd, cuyo tamaño es de 6 bytes.
+Donde gdt_pd es un struct Pseudodesc gdt_pd, cuyo tamaño es de 6 bytes.
 
-b. Esos bytes representan el tamaño y ubicación de la Global Descriptor Table (GDT): los 16 bits menos significativos contienen el tamaño, mientras que en los 32 bits más significativos se encuentra la ubicación de la GDT en memoria.
+b. Esos bytes representan el tamaño y ubicación de la Global Descriptor Table (GDT): los 16 bits menos significativos contienen el tamaño (límite de tabla), mientras que en los 32 bits más significativos se encuentra la ubicación de la GDT en memoria (dirección base).
 
 Para verificar lo mencionado buscamos la definición de los valores que se cargan, y del struct: 
 struct Pseudodesc gdt_pd = { sizeof(gdt) - 1, (unsigned long) gdt };
@@ -150,7 +149,9 @@ struct Pseudodesc {
 	uint32_t pd_base;		// Base address
 }
 
-c. 
+c. La GDT es una tabla en memoria que define los segmentos de memoria del procesador, como cada hilo se ejecuta en paralelo se tendrán dos procesadores (como mínimo). Cada uno con su conjunto de registros, y específicamente, su GDTR. Por lo cual, cada uno puede apuntar a una tabla GDT distinta almacenada en memoria. 
+
+Cada procesador necesita su propio TSS (Task State Segment) descriptor, donde TSS es una estructura de datos especial que contiene información sobre una tarea. Ésto ocurre ya que al cambiar a un nivel de privilegio mayor, carga un nuevo stack pointer para el nivel de mayor privilegio a partir del TSS: al hacer un system call, la CPU obtiene el valor de SS0 (stack segment selector para CPL=0) y ESP0 (valor nuevo de ESP para CPL=0) del TSS, permitiendo que el kernel utilice un stack diferente al del programa de usuario. Se podría tener una única tabla GDT con varios TSS descriptors, o bien una GDT para cada procesador.
 
 
 env_pop_tf
