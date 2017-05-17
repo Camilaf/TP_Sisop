@@ -44,6 +44,8 @@ extern void trap_17();
 extern void trap_18();
 extern void trap_19();
 
+extern void trap_48();
+
 static const char *
 trapname(int trapno)
 {
@@ -105,7 +107,7 @@ trap_init(void)
 	SETGATE(idt[T_ALIGN], 0, GD_KT, trap_17, 0);
 	SETGATE(idt[T_MCHK], 0, GD_KT, trap_18, 0);
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_19, 0);
-	
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_48, 3);
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -184,19 +186,28 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
 	
-	if (tf->tf_trapno == T_BRKPT)
+	switch (tf->tf_trapno) {
+	case T_BRKPT:
 		monitor(tf);
-		
-	else if (tf->tf_trapno == T_PGFLT)
+		break;
+	
+	case T_PGFLT:
 		page_fault_handler(tf);
-
-	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+		break;
+		
+	case T_SYSCALL:
+		tf-> tf_regs.reg_eax = syscall(tf-> tf_regs.reg_eax, tf-> tf_regs.reg_edx, tf-> tf_regs.reg_ecx, tf-> tf_regs.reg_ebx, tf-> tf_regs.reg_edi, tf-> tf_regs.reg_esi);
+		break;
+		
+	default:
+		// Unexpected trap: The user process or the kernel has a bug.
+		print_trapframe(tf);
+		if (tf->tf_cs == GD_KT)
+			panic("unhandled trap in kernel");
+		else {
+			env_destroy(curenv);
+			return;
+		}
 	}
 }
 
