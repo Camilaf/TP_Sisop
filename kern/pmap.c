@@ -304,7 +304,7 @@ page_init(void)
 	
 	i = PGNUM(PADDR(boot_alloc(0)));  //Find
 	
-	for(;i<npages;i++){
+	for(; i < npages; i++){
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];			
@@ -455,6 +455,9 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 		// find pte
 		pte_t *pte = pgdir_walk(pgdir, (void *)va, 1);	
 		
+		if (!pte)
+				panic("boot_map_region: could not set pte");
+				
 		//associate.
 		*pte = pa | perm | PTE_P;
 	
@@ -482,9 +485,9 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 			// find pte
 			pte_t *pte = pgdir_walk(pgdir, (void *)va, 1);	
 	
-			/*if (!pte)
-				panic("boot_map_region: what?");
-			*/
+			if (!pte)
+				panic("boot_map_region: could not set pte");
+			
 		
 			//associate.
 			*pte = pa | perm | PTE_P;

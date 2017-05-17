@@ -275,21 +275,21 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
 	
-	va = ROUNDDOWN(va, PGSIZE);
-	void *dirFinal = ROUNDUP(va + len, PGSIZE);
+	uint32_t dirInicial = ROUNDDOWN((uint32_t) va, PGSIZE);
+	uint32_t dirFinal = ROUNDUP((uint32_t) va + len, PGSIZE);
 	
 	if (len == 0)
 		return;
 	
-	while (va < dirFinal) {
+	while (dirInicial < dirFinal) {
 		// We don't initialize the page 
 		struct PageInfo *pp = page_alloc(~ALLOC_ZERO);
 		
 		if (!pp)
 			panic("region_alloc: could not create page, out of free memory\n");
 			
-		page_insert(e->env_pgdir, pp, va, PTE_W | PTE_U);
-		va += PGSIZE;
+		page_insert(e->env_pgdir, pp, (void *) dirInicial, PTE_W | PTE_U);
+		dirInicial += PGSIZE;
 	}
 }
 
@@ -359,15 +359,26 @@ load_icode(struct Env *e, uint8_t *binary)
 	struct Proghdr *progHeader = (struct Proghdr *) (binary + bin->e_phoff);
 	lcr3(PADDR(e->env_pgdir));
 	
-	for(int i = 0; i < bin->e_phnum; i++) {
+	for(size_t i = 0; i < bin->e_phnum; i++) {
 		if (progHeader->p_type == ELF_PROG_LOAD) {
-			region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
-			memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
-			memset((void *) (progHeader->p_va + progHeader->p_filesz), 0, progHeader->p_memsz - progHeader->p_filesz);
+			if (progHeader->p_filesz > progHeader->p_memsz)
+				panic("load_icode: ph->p_filesz bigger than ph->p_memsz\n");
+			//if (progHeader->p_va < UTEXT)
+			//	panic("load_icode: !\n");
+			if (progHeader->p_va + progHeader->p_memsz < progHeader->p_va)
+				panic("load_icode: Overflow!\n");
+			
+			if (progHeader->p_va + progHeader->p_memsz < USTACKTOP) {
+				region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
+				memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
+				memset((void *) (progHeader->p_va + progHeader->p_filesz), 0, progHeader->p_memsz - progHeader->p_filesz);
+			}
 		}
 		
 		progHeader++;
 	}
+	
+	lcr3(PADDR(kern_pgdir));
 	
 	// Intruction pointer equal to the program's entry point
 	e->env_tf.tf_eip = bin->e_entry;
