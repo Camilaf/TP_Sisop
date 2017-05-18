@@ -348,3 +348,9 @@ kern_idt
 
 user_evilhello
 --------------
+1. En el primer caso, se pasaba a sys_cputs directamente el valor de VA = 0xf010000c. En el nuevo código,se le pasa &first, que es la dirección de memoria del elemento al que apunta entry.
+2. Cuando corremos el original: user_mem_check assertion failure for va f010000c
+   Cuando corremos la segunda versión:
+ user fault va f010000c ip 00800039
+ page fault 
+3. 
