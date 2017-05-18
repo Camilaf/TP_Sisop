@@ -341,7 +341,9 @@ kern_idt
 --------
 1. TRAPHANDLER pushea un número de trap en el stack y luego salta a _alltraps (etiqueta). Se debe usar donde la CPU pushea un código de error automáticamente.
  En el caso contrario, donde la CPU no pushea un código de error, se debe usar TRAPHANDLER_NOEC que pusea un 0 en lugar del código de error, de forma que el trap frame sea igual en todo caso. Luego, salta a _alltraps.
-2.
+2. De acuerdo con la definición de la macro SETGATE(gate,istrap,sel,off,dpl) en mmu.h (lìnea 268), el parámetro istrap vale 1 si tenemos un gate de trap/excepción y 0 si es de interrupciòn.
+ La diferencia entre un trap gate y un interrupt gate es cómo cambian (o no) el flag de "interrupt-enable". Si tenemos una interrupt gate, se resetea ese flag para poder prevenir que otras interrupciones interfieran con el manejo que se está ejecutando. Si es un trap gate, no se cambia el flag.
+ Es con respecto a este último tema, que elegimos uno u otro valor de istrap a la hora de invocar SETGATE; si queremos preservar la ejecución del handler actual, lo seteamos en 0.
 3.
 
 
