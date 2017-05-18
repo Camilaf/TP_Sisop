@@ -344,8 +344,7 @@ kern_idt
 2. De acuerdo con la definición de la macro SETGATE(gate,istrap,sel,off,dpl) en mmu.h (lìnea 268), el parámetro istrap vale 1 si tenemos un gate de trap/excepción y 0 si es de interrupciòn.
  La diferencia entre un trap gate y un interrupt gate es cómo cambian (o no) el flag de "interrupt-enable". Si tenemos una interrupt gate, se resetea ese flag para poder prevenir que otras interrupciones interfieran con el manejo que se está ejecutando. Si es un trap gate, no se cambia el flag.
  Es con respecto a este último tema, que elegimos uno u otro valor de istrap a la hora de invocar SETGATE; si queremos preservar la ejecución del handler actual, lo seteamos en 0.
-3.
-
+3. La excepción Nº 14, en el código de softint, refiere a page fault. Como el kernel no permite que los programas de usuario invoquen excepciones a elección, se genera la excepción "General Protection" (trap 13). Se genera ante el intento del programa de violar su nivel de privilegio. El procesador detecta esta situación, por lo que se suspende la ejecución lanzando un GPF interrupt.
 
 user_evilhello
 --------------
