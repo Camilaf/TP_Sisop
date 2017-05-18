@@ -339,6 +339,10 @@ Se puede notar que comienza la ejecución en Real Mode: toma como arquitectura o
 
 kern_idt
 --------
+1. TRAPHANDLER pushea un número de trap en el stack y luego salta a _alltraps (etiqueta). Se debe usar donde la CPU pushea un código de error automáticamente.
+ En el caso contrario, donde la CPU no pushea un código de error, se debe usar TRAPHANDLER_NOEC que pusea un 0 en lugar del código de error, de forma que el trap frame sea igual en todo caso. Luego, salta a _alltraps.
+2.
+3.
 
 
 user_evilhello
