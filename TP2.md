@@ -335,3 +335,11 @@ Conexión remota cerrada
 
 Luego de efectuar el cambio de contexto, se ejecuta el hello binary hasta la syscall. Ya que para hacer una system call, el programa debe invocar la instrucción int n, donde n es el índice de la IDT (Interrupt Descriptor Table). Pero como todavía no se efectuó el manejo de interrupciones, se genera una general protection (GP) exception. Como en la parte A no se configuró el manejo de excepciones, se genera una excepción double fault pero como tampoco se maneja, termina en triple fault. Colocando en el comando de makefile las opciones brindadas por la cátedra: -no-reboot y -d cpu_reset, en qemu.log aparece como mensaje final 'Triple fault'. Debido a la triple fault, la CPU hace reset y luego rebootea.
 Se puede notar que comienza la ejecución en Real Mode: toma como arquitectura objetivo i8086 y utiliza segmentación para obtener la dirección (en el rango de 1MB). Usa segment:offset.
+
+
+kern_idt
+--------
+
+
+user_evilhello
+--------------
