@@ -1,0 +1,452 @@
+diff --git a/TP2.md b/TP2.md
+index 5deb7eb..9e6650d 100644
+--- a/TP2.md
++++ b/TP2.md
+@@ -335,3 +335,108 @@ Conexión remota cerrada
+ 
+ Luego de efectuar el cambio de contexto, se ejecuta el hello binary hasta la syscall. Ya que para hacer una system call, el programa debe invocar la instrucción int n, donde n es el índice de la IDT (Interrupt Descriptor Table). Pero como todavía no se efectuó el manejo de interrupciones, se genera una general protection (GP) exception. Como en la parte A no se configuró el manejo de excepciones, se genera una excepción double fault pero como tampoco se maneja, termina en triple fault. Colocando en el comando de makefile las opciones brindadas por la cátedra: -no-reboot y -d cpu_reset, en qemu.log aparece como mensaje final 'Triple fault'. Debido a la triple fault, la CPU hace reset y luego rebootea.
+ Se puede notar que comienza la ejecución en Real Mode: toma como arquitectura objetivo i8086 y utiliza segmentación para obtener la dirección (en el rango de 1MB). Usa segment:offset.
++
++
++kern_idt
++--------
++1. TRAPHANDLER pushea el número de trap en el stack y luego salta al label _alltraps. Se debe usar en los casos en donde la CPU pushea el código de error automáticamente. Por el contrario, para las interrupciones o excepciones en las que la CPU no pushea el código de error, se debe usar TRAPHANDLER_NOEC ya que pushea un 0 antes del push del trap number, manteniendo la estructura definida en el struct Trapframe. Luego, salta a _alltraps.
++    Si se utilizara solamente TRAPHANDLER, se esperaría que la CPU siempre haga push del código de error; pero como esto no sucede siempre, se dejaría de respetar el struct definido en aquellos casos en donde la CPU no almacena el código de error (el instruction pointer se tomaría como error code, por ejemplo), generando múltiples inconvenientes.
++2. De acuerdo con la definición de la macro SETGATE(gate,istrap,sel,off,dpl), el parámetro istrap vale 1 si tenemos un gate de trap/excepción y 0 si es de interrupción. La diferencia entre un trap gate y un interrupt gate está en cómo cambian (o no) el flag de "interrupt-enable", es decir, en el manejo del IF flag del EFLAGS register. Si tenemos un interrupt gate, se resetea ese flag para evitar que otras interrupciones interfieran con el manejo que se está ejecutando. Si se trata de un trap gate, el IF flag no cambia.
++    Es con respecto a este último tema, que elegimos uno u otro valor de istrap a la hora de invocar SETGATE; si queremos preservar la ejecución del handler actual, lo seteamos en 0.
++3. El programa softint invoca la excepción Nº 14, que refiere a Page Fault. Como el kernel no permite que los programas de usuario invoquen excepciones a elección, se genera la excepción "General Protection" (trap 13). Se genera ante el intento del programa de violar su nivel de privilegio. El procesador detecta esta situación, por lo que se suspende la ejecución lanzando un GPF interrupt.
++    De acuerdo con [IA32-3A], cuando se genera una excepción o interrupción con la instrucción int n, el procesador verifica el DPL (Descriptor Privilege Level) del interrupt/trap gate y se controla que el CPL (Current Privilege Level) sea menor o igual al DPL observado. Esta restricción evita que los procesos en user mode usen una interrupción de software para acceder a ciertos exception handlers de mayor privilegio (menor nivel numérico), como el page fault handler.
++    El mecanismo de protección del procesador puede controlarlo mediante los campos DPL (bits 13 y 14 en la segunda doubleword de un segment descriptor), que indica el nivel de privilegio del segmento; y CPL (bits 0 y 1 del segment register CS), que determina el nivel de privilegio del programa o procedimiento que se está ejecutando.
++
++user_evilhello
++--------------
++1. En el primer caso, se pasaba a sys_cputs directamente el valor de VA = 0xf010000c. 
++ En el nuevo código,se  crea un char first, donde se quiere almacenar el primer byte al que apunta el entry del kernel. A sys_cputs, se le pasa &first, que es la dirección de memoria donde se aloja ese elemento first.
++2. Con la ejecución del código original
++
++		sys_cputs((char*)0xf010000c, 1);
++
++ Se obtiene la salida
++
++		sisop@ailu-gonzalez:~/Escritorio/TP_Sisop$ make run-evilhello-nox
++		make[1]: se entra en el directorio '/home/sisop/Escritorio/TP_Sisop'
++		+ cc kern/trap.c
++		+ cc kern/syscall.c
++		+ ld obj/kern/kernel
++		+ mk obj/kern/kernel.img
++		make[1]: se sale del directorio '/home/sisop/Escritorio/TP_Sisop'
++		qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb 	 tcp:127.0.0.1:26003 -D qemu.log  -d guest_errors
++		6828 decimal is 15254 octal!
++		Physical memory: 131072K available, base = 640K, extended = 130432K
++		check_page_alloc() succeeded!
++		check_page() succeeded!
++		check_kern_pgdir() succeeded!
++		check_page_installed_pgdir() succeeded!
++		[00000000] new env 00001000
++		Incoming TRAP frame at 0xefffffbc
++		fIncoming TRAP frame at 0xefffffbc
++		[00001000] exiting gracefully
++		[00001000] free env 00001000
++		Destroyed the only environment - nothing more to do!
++		Welcome to the JOS kernel monitor!
++		Type 'help' for a list of commands.
++		K> 
++
++ Con la ejecución del nuevo código
++
++		char *entry = (char *) 0xf010000c;
++    		char first = *entry;
++    		sys_cputs(&first, 1);
++
++ Se obtiene la siguiente salida
++
++		sisop@ailu-gonzalez:~/Escritorio/TP_Sisop$ make run-evilhello-nox
++		make[1]: se entra en el directorio '/home/sisop/Escritorio/TP_Sisop'
++		+ cc[USER] user/evilhello.c
++		+ ld obj/user/evilhello
++		+ ld obj/kern/kernel
++		+ mk obj/kern/kernel.img
++		make[1]: se sale del directorio '/home/sisop/Escritorio/TP_Sisop'
++		qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp:127.0.0.1:26003 -D qemu.log  -d guest_errors
++		6828 decimal is 15254 octal!
++		Physical memory: 131072K available, base = 640K, extended = 130432K
++		check_page_alloc() succeeded!
++		check_page() succeeded!
++		check_kern_pgdir() succeeded!
++		check_page_installed_pgdir() succeeded!
++		[00000000] new env 00001000
++		Incoming TRAP frame at 0xefffffbc
++		[00001000] user fault va f010000c ip 00800039
++		TRAP frame at 0xf01b7000
++		  edi  0x00000000
++		  esi  0x00000000
++		  ebp  0xeebfdfd0
++		  oesp 0xefffffdc
++ 		  ebx  0x00000000
++		  edx  0x00000000
++		  ecx  0x00000000
++		  eax  0x00000000
++		  es   0x----0023
++		  ds   0x----0023		
++		  trap 0x0000000e Page Fault
++		  cr2  0xf010000c
++		  err  0x00000005 [user, read, protection]
++		  eip  0x00800039
++		cs   0x----001b
++		  flag 0x00000082
++		  esp  0xeebfdfb0
++		  ss   0x----0023
++		[00001000] free env 00001000
++		Destroyed the only environment - nothing more to do!
++		Welcome to the JOS kernel monitor!
++		Type 'help' for a list of commands.
++		K> 
++
++En el primer caso se imprime el primer byte del entry point como caracter (mediante el syscall), mientras que en el segundo no se llega a imprimir nada debido al Page Fault generado.
++
++En el primer caso se hace la siguiente llamada: sys_cputs((char *)0xf010000c, 1). Pero observando la definición de sys_cputs, se puede ver que no se controla que el usuario tenga los permisos necesarios para leer el rango de memoria que desea imprimir en consola. Por lo cual, se llama directamente a la función, usando la dirección correspondiente al entry point del kernel y lo imprime sin hacer ningún chequeo sobre el acceso del usuario a ese rango de memoria.
++
++En el segundo caso, en lugar de llamar directamente a sys_cputs, se declara un puntero a char (entry) y se lo iguala con el entry point del kernel. Luego se declara un char (first) y se le quiere asignar el byte apuntado por entry, para luego llamar a sys_cputs usando la dirección en donde se almacenaría ese valor. El problema es que esa función no se llega a ejecutar ya que al acceder a la memoria del kernel para leer el byte y de esa forma asignarlo a first, sí se controlan los permisos del usuario sobre la operación. Pero, como se puede observar en memlayout.h, el usuario no tiene permisos de lectura sobre ese rango de memoria, lo que provoca un Page Fault.
++Mediante print_trapframe se puede verificar que se generó el Page Fault, y a partir del código de error generado podemos confirmar que la falla se generó en user mode, que se originó por una lectura y por una violación de la protección.
++
++3. Es un mecanismo de protección, ante un intento de acceso no permitido del usuario.
++Este mecanismo de protección del procesador puede controlar los accesos a páginas mediante los flags: user/supervisor (U/S) flag (bit 2 de la PTE), el cual determina el tipo de página, controla el acceso a la página de acuerdo al nivel de privilegio; y read/write (R/W) flag (bit 1 de la PTE), que determina el tipo de acceso permitido, si es read-only o read/write.
+diff --git a/kern/env.c b/kern/env.c
+index 4e46f8a..009634b 100644
+--- a/kern/env.c
++++ b/kern/env.c
+@@ -275,21 +275,21 @@ region_alloc(struct Env *e, void *va, size_t len)
+ 	//   You should round va down, and round (va + len) up.
+ 	//   (Watch out for corner-cases!)
+ 	
+-	va = ROUNDDOWN(va, PGSIZE);
+-	void *dirFinal = ROUNDUP(va + len, PGSIZE);
++	uint32_t dirInicial = ROUNDDOWN((uint32_t) va, PGSIZE);
++	uint32_t dirFinal = ROUNDUP((uint32_t) va + len, PGSIZE);
+ 	
+ 	if (len == 0)
+ 		return;
+ 	
+-	while (va < dirFinal) {
++	while (dirInicial < dirFinal) {
+ 		// We don't initialize the page 
+ 		struct PageInfo *pp = page_alloc(~ALLOC_ZERO);
+ 		
+ 		if (!pp)
+ 			panic("region_alloc: could not create page, out of free memory\n");
+ 			
+-		page_insert(e->env_pgdir, pp, va, PTE_W | PTE_U);
+-		va += PGSIZE;
++		page_insert(e->env_pgdir, pp, (void *) dirInicial, PTE_W | PTE_U);
++		dirInicial += PGSIZE;
+ 	}
+ }
+ 
+@@ -359,16 +359,25 @@ load_icode(struct Env *e, uint8_t *binary)
+ 	struct Proghdr *progHeader = (struct Proghdr *) (binary + bin->e_phoff);
+ 	lcr3(PADDR(e->env_pgdir));
+ 	
+-	for(int i = 0; i < bin->e_phnum; i++) {
++	for(size_t i = 0; i < bin->e_phnum; i++) {
+ 		if (progHeader->p_type == ELF_PROG_LOAD) {
+-			region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
+-			memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
+-			memset((void *) (progHeader->p_va + progHeader->p_filesz), 0, progHeader->p_memsz - progHeader->p_filesz);
++			if (progHeader->p_filesz > progHeader->p_memsz)
++				panic("load_icode: ph->p_filesz bigger than ph->p_memsz\n");
++			if (progHeader->p_va + progHeader->p_memsz < progHeader->p_va)
++				panic("load_icode: Overflow!\n");
++			
++			if (progHeader->p_va + progHeader->p_memsz < USTACKTOP) {
++				region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
++				memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
++				memset((void *) (progHeader->p_va + progHeader->p_filesz), 0, progHeader->p_memsz - progHeader->p_filesz);
++			}
+ 		}
+ 		
+ 		progHeader++;
+ 	}
+ 	
++	lcr3(PADDR(kern_pgdir));
++	
+ 	// Intruction pointer equal to the program's entry point
+ 	e->env_tf.tf_eip = bin->e_entry;
+ 	
+diff --git a/kern/pmap.c b/kern/pmap.c
+index eed47de..0ca6b87 100644
+--- a/kern/pmap.c
++++ b/kern/pmap.c
+@@ -304,7 +304,7 @@ page_init(void)
+ 	
+ 	i = PGNUM(PADDR(boot_alloc(0)));  //Find
+ 	
+-	for(;i<npages;i++){
++	for(; i < npages; i++){
+ 		pages[i].pp_ref = 0;
+ 		pages[i].pp_link = page_free_list;
+ 		page_free_list = &pages[i];			
+@@ -455,6 +455,9 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
+ 		// find pte
+ 		pte_t *pte = pgdir_walk(pgdir, (void *)va, 1);	
+ 		
++		if (!pte)
++				panic("boot_map_region: could not set pte");
++				
+ 		//associate.
+ 		*pte = pa | perm | PTE_P;
+ 	
+@@ -647,6 +650,35 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
+ {
+ 	// LAB 3: Your code here.
+ 
++	uint32_t dirInicial = ROUNDDOWN((uint32_t) va, PGSIZE);
++	uint32_t dirFinal = ROUNDUP((uint32_t) va + len, PGSIZE);
++	
++	user_mem_check_addr = -1;
++	
++	while (dirInicial < dirFinal) {
++		if (dirInicial >= ULIM) 
++			user_mem_check_addr = dirInicial;
++
++		pte_t *pte = pgdir_walk(env->env_pgdir, (const void *) dirInicial, 0);
++		
++		if (! pte) 
++			user_mem_check_addr = dirInicial;
++		
++		if (!(*pte & (perm | PTE_P))) 
++			user_mem_check_addr = dirInicial;
++		
++		dirInicial+= PGSIZE;
++			
++	}
++	
++	if (user_mem_check_addr != -1) {
++		// Border case
++		if ((uint32_t) va > user_mem_check_addr) 
++			user_mem_check_addr = (uint32_t) va;
++
++		return -E_FAULT;
++	}
++		
+ 	return 0;
+ }
+ 
+diff --git a/kern/syscall.c b/kern/syscall.c
+index 0ee6be0..13f1d9a 100644
+--- a/kern/syscall.c
++++ b/kern/syscall.c
+@@ -21,6 +21,7 @@ sys_cputs(const char *s, size_t len)
+ 	// Destroy the environment if not.
+ 
+ 	// LAB 3: Your code here.
++	user_mem_assert(curenv, s, len, PTE_U);
+ 
+ 	// Print the string supplied by the user.
+ 	cprintf("%.*s", len, s);
+@@ -70,9 +71,20 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
+ 	// Return any appropriate return value.
+ 	// LAB 3: Your code here.
+ 
+-	panic("syscall not implemented");
++	//panic("syscall not implemented");
+ 
+ 	switch (syscallno) {
++	
++	case SYS_cputs:
++		sys_cputs((const char *) a1, a2);
++		return 0;
++	case SYS_cgetc:
++		return sys_cgetc();
++	case SYS_getenvid:
++		return sys_getenvid();
++	case SYS_env_destroy:
++		return sys_env_destroy(a1);
++		
+ 	default:
+ 		return -E_INVAL;
+ 	}
+diff --git a/kern/trap.c b/kern/trap.c
+index 4e55d15..1a6c589 100644
+--- a/kern/trap.c
++++ b/kern/trap.c
+@@ -23,6 +23,28 @@ static struct Trapframe *last_tf;
+ struct Gatedesc idt[256] = { { 0 } };
+ struct Pseudodesc idt_pd = { sizeof(idt) - 1, (uint32_t) idt };
+ 
++extern void trap_0();
++extern void trap_1();
++extern void trap_2();
++extern void trap_3();
++extern void trap_4();
++extern void trap_5();
++extern void trap_6();
++extern void trap_7();
++extern void trap_8();
++/*extern void trap_9(); */	// reserved (not generated by recent processors)
++extern void trap_10();
++extern void trap_11();
++extern void trap_12();
++extern void trap_13();
++extern void trap_14();
++/*extern void trap_15(); */	// reserved
++extern void trap_16();
++extern void trap_17();
++extern void trap_18();
++extern void trap_19();
++
++extern void trap_48();
+ 
+ static const char *
+ trapname(int trapno)
+@@ -64,7 +86,29 @@ trap_init(void)
+ 	extern struct Segdesc gdt[];
+ 
+ 	// LAB 3: Your code here.
+-
++	
++	SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_0, 0);
++	SETGATE(idt[T_DEBUG], 0, GD_KT, trap_1, 0);
++	SETGATE(idt[T_NMI], 0, GD_KT, trap_2, 0);
++	SETGATE(idt[T_BRKPT], 0, GD_KT, trap_3, 3);
++	SETGATE(idt[T_OFLOW], 0, GD_KT, trap_4, 0);
++	SETGATE(idt[T_BOUND], 0, GD_KT, trap_5, 0);
++	SETGATE(idt[T_ILLOP], 0, GD_KT, trap_6, 0);
++	SETGATE(idt[T_DEVICE], 0, GD_KT, trap_7, 0);
++	SETGATE(idt[T_DBLFLT], 0, GD_KT, trap_8, 0);
++	/* SETGATE(idt[T_COPROC], 0, GD_KT, trap_9, 0); */	// reserved (not generated by recent processors)
++	SETGATE(idt[T_TSS], 0, GD_KT, trap_10, 0);
++	SETGATE(idt[T_SEGNP], 0, GD_KT, trap_11, 0);
++	SETGATE(idt[T_STACK], 0, GD_KT, trap_12, 0);
++	SETGATE(idt[T_GPFLT], 0, GD_KT, trap_13, 0);
++	SETGATE(idt[T_PGFLT], 0, GD_KT, trap_14, 0);
++	/* SETGATE(idt[T_RES], 0, GD_KT, trap_15, 0); */	// reserved
++	SETGATE(idt[T_FPERR], 0, GD_KT, trap_16, 0);
++	SETGATE(idt[T_ALIGN], 0, GD_KT, trap_17, 0);
++	SETGATE(idt[T_MCHK], 0, GD_KT, trap_18, 0);
++	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_19, 0);
++	
++	SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_48, 3);
+ 	// Per-CPU setup
+ 	trap_init_percpu();
+ }
+@@ -142,14 +186,30 @@ trap_dispatch(struct Trapframe *tf)
+ {
+ 	// Handle processor exceptions.
+ 	// LAB 3: Your code here.
+-
+-	// Unexpected trap: The user process or the kernel has a bug.
+-	print_trapframe(tf);
+-	if (tf->tf_cs == GD_KT)
+-		panic("unhandled trap in kernel");
+-	else {
+-		env_destroy(curenv);
+-		return;
++	
++	switch (tf->tf_trapno) {
++	
++	case T_BRKPT:
++		monitor(tf);
++		break;
++	
++	case T_PGFLT:
++		page_fault_handler(tf);
++		break;
++		
++	case T_SYSCALL:
++		tf-> tf_regs.reg_eax = syscall(tf-> tf_regs.reg_eax, tf-> tf_regs.reg_edx, tf-> tf_regs.reg_ecx, tf-> tf_regs.reg_ebx, tf-> tf_regs.reg_edi, tf-> tf_regs.reg_esi);
++		break;
++		
++	default:
++		// Unexpected trap: The user process or the kernel has a bug.
++		print_trapframe(tf);
++		if (tf->tf_cs == GD_KT)
++			panic("unhandled trap in kernel");
++		else {
++			env_destroy(curenv);
++			return;
++		}
+ 	}
+ }
+ 
+@@ -203,7 +263,9 @@ page_fault_handler(struct Trapframe *tf)
+ 	// Handle kernel-mode page faults.
+ 
+ 	// LAB 3: Your code here.
+-
++	if ((tf->tf_cs & 3) == 0) 
++		panic("page_fault_handler: page fault in kernel mode!\n");
++	
+ 	// We've already handled kernel-mode exceptions, so if we get here,
+ 	// the page fault happened in user mode.
+ 
+diff --git a/kern/trapentry.S b/kern/trapentry.S
+index 22fc640..2d73d32 100644
+--- a/kern/trapentry.S
++++ b/kern/trapentry.S
+@@ -47,9 +47,42 @@
+  * Lab 3: Your code here for generating entry points for the different traps.
+  */
+ 
++TRAPHANDLER_NOEC(trap_0, T_DIVIDE)
++TRAPHANDLER_NOEC(trap_1, T_DEBUG)
++TRAPHANDLER_NOEC(trap_2, T_NMI)
++TRAPHANDLER_NOEC(trap_3, T_BRKPT)
++TRAPHANDLER_NOEC(trap_4, T_OFLOW)
++TRAPHANDLER_NOEC(trap_5, T_BOUND)
++TRAPHANDLER_NOEC(trap_6, T_ILLOP)
++TRAPHANDLER_NOEC(trap_7, T_DEVICE)
++TRAPHANDLER(trap_8, T_DBLFLT)
++/* TRAPHANDLER_NOEC(trap_9, T_COPROC) */	// reserved (not generated by recent processors)
++TRAPHANDLER(trap_10, T_TSS)
++TRAPHANDLER(trap_11, T_SEGNP)
++TRAPHANDLER(trap_12, T_STACK)
++TRAPHANDLER(trap_13, T_GPFLT)
++TRAPHANDLER(trap_14, T_PGFLT)
++/* TRAPHANDLER_NOEC(trap_15, T_RES) */		// reserved
++TRAPHANDLER_NOEC(trap_16, T_FPERR)
++TRAPHANDLER(trap_17, T_ALIGN)
++TRAPHANDLER_NOEC(trap_18, T_MCHK)
++TRAPHANDLER_NOEC(trap_19, T_SIMDERR)
+ 
++TRAPHANDLER_NOEC(trap_48, T_SYSCALL)
+ 
+ /*
+  * Lab 3: Your code here for _alltraps
+  */
+ 
++_alltraps:
++	pushl	%ds
++	pushl	%es
++	pushal
++
++	movw 	$(GD_KD), %ax
++	movw	%ax, %ds
++	movw 	%ax, %es
++	
++	pushl	%esp 
++	call	trap
++
+diff --git a/user/evilhello.c b/user/evilhello.c
+index 261e32c..c549199 100644
+--- a/user/evilhello.c
++++ b/user/evilhello.c
+@@ -8,5 +8,8 @@ umain(int argc, char **argv)
+ {
+ 	// try to print the kernel entry point as a string!  mua ha ha!
+ 	sys_cputs((char*)0xf010000c, 100);
++/*	char *entry = (char *) 0xf010000c;
++	char first = *entry;
++	sys_cputs(&first, 1);*/
+ }
+ 
+diff --git a/user/hello.c b/user/hello.c
+index 486c9dc..2e77b03 100644
+--- a/user/hello.c
++++ b/user/hello.c
+@@ -5,5 +5,5 @@ void
+ umain(int argc, char **argv)
+ {
+ 	cprintf("hello, world\n");
+-	cprintf("i am environment %08x\n", thisenv->env_id);
++	cprintf("i am environment %08x\n", sys_getenvid());
+ }
