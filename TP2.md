@@ -351,8 +351,85 @@ user_evilhello
 --------------
 1. En el primer caso, se pasaba a sys_cputs directamente el valor de VA = 0xf010000c. 
  En el nuevo código,se  crea un char first, donde se almacena el primer byte al que apunta el entry sel kernel. A sys_cputs, se le pasa &first, que es la dirección de memoria donde se aloja ese elemento first.
-2. Cuando corremos el original: user_mem_check assertion failure for va f010000c
-   Cuando corremos la segunda versión:
- user fault va f010000c ip 00800039
- page fault 
-3. 
+2. Con la ejecución del código original
+
+		sys_cputs((char*)0xf010000c, 1);
+
+ Se obtiene la salida
+
+		sisop@ailu-gonzalez:~/Escritorio/TP_Sisop$ make run-evilhello-nox
+		make[1]: se entra en el directorio '/home/sisop/Escritorio/TP_Sisop'
+		+ cc kern/trap.c
+		+ cc kern/syscall.c
+		+ ld obj/kern/kernel
+		+ mk obj/kern/kernel.img
+		make[1]: se sale del directorio '/home/sisop/Escritorio/TP_Sisop'
+		qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb 	 tcp:127.0.0.1:26003 -D qemu.log  -d guest_errors
+		6828 decimal is 15254 octal!
+		Physical memory: 131072K available, base = 640K, extended = 130432K
+		check_page_alloc() succeeded!
+		check_page() succeeded!
+		check_kern_pgdir() succeeded!
+		check_page_installed_pgdir() succeeded!
+		[00000000] new env 00001000
+		Incoming TRAP frame at 0xefffffbc
+		fIncoming TRAP frame at 0xefffffbc
+		[00001000] exiting gracefully
+		[00001000] free env 00001000
+		Destroyed the only environment - nothing more to do!
+		Welcome to the JOS kernel monitor!
+		Type 'help' for a list of commands.
+		K> 
+
+ Con la ejecución del nuevo código
+
+		char *entry = (char *) 0xf010000c;
+    		char first = *entry;
+    		sys_cputs(&first, 1);
+
+ Se obtiene la siguiente salida
+
+		sisop@ailu-gonzalez:~/Escritorio/TP_Sisop$ make run-evilhello-nox
+		make[1]: se entra en el directorio '/home/sisop/Escritorio/TP_Sisop'
+		+ cc[USER] user/evilhello.c
+		+ ld obj/user/evilhello
+		+ ld obj/kern/kernel
+		+ mk obj/kern/kernel.img
+		make[1]: se sale del directorio '/home/sisop/Escritorio/TP_Sisop'
+		qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp:127.0.0.1:26003 -D qemu.log  -d guest_errors
+		6828 decimal is 15254 octal!
+		Physical memory: 131072K available, base = 640K, extended = 130432K
+		check_page_alloc() succeeded!
+		check_page() succeeded!
+		check_kern_pgdir() succeeded!
+		check_page_installed_pgdir() succeeded!
+		[00000000] new env 00001000
+		Incoming TRAP frame at 0xefffffbc
+		[00001000] user fault va f010000c ip 00800039
+		TRAP frame at 0xf01b7000
+		  edi  0x00000000
+		  esi  0x00000000
+		  ebp  0xeebfdfd0
+		  oesp 0xefffffdc
+ 		  ebx  0x00000000
+		  edx  0x00000000
+		  ecx  0x00000000
+		  eax  0x00000000
+		  es   0x----0023
+		  ds   0x----0023		
+		  trap 0x0000000e Page Fault
+		  cr2  0xf010000c
+		  err  0x00000005 [user, read, protection]
+		  eip  0x00800039
+		cs   0x----001b
+		  flag 0x00000082
+		  esp  0xeebfdfb0
+		  ss   0x----0023
+		[00001000] free env 00001000
+		Destroyed the only environment - nothing more to do!
+		Welcome to the JOS kernel monitor!
+		Type 'help' for a list of commands.
+		K> 
+
+
+3. Es un mecanismo de protección, ante un intento de acceso no permitido del usuario.
