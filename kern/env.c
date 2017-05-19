@@ -363,8 +363,6 @@ load_icode(struct Env *e, uint8_t *binary)
 		if (progHeader->p_type == ELF_PROG_LOAD) {
 			if (progHeader->p_filesz > progHeader->p_memsz)
 				panic("load_icode: ph->p_filesz bigger than ph->p_memsz\n");
-			//if (progHeader->p_va < UTEXT)
-			//	panic("load_icode: !\n");
 			if (progHeader->p_va + progHeader->p_memsz < progHeader->p_va)
 				panic("load_icode: Overflow!\n");
 			
