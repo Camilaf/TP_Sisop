@@ -3,6 +3,7 @@ TP2: Procesos de usuario
 
 env_alloc
 ---------
+
 1. Porción de código a considerar para la generación del id del proceso:
 
 	// Generate an env_id for this environment.
@@ -129,6 +130,7 @@ c. La GDT es una tabla en memoria que define los segmentos de memoria del proces
 Cada procesador necesita su propio TSS (Task State Segment) descriptor, donde TSS es una estructura de datos especial que contiene información sobre una tarea. Ésto ocurre ya que al cambiar a un nivel de mayor privilegio, carga un nuevo stack pointer para ese nivel a partir del TSS: al hacer un system call, la CPU obtiene el valor de SS0 (stack segment selector para CPL=0) y ESP0 (valor nuevo de ESP para CPL=0) del TSS, permitiendo que el kernel utilice un stack diferente al del programa de usuario. Se podría tener una única tabla GDT con varios TSS descriptors, o bien una GDT para cada procesador.
 
 
+
 env_pop_tf
 ----------
 1. ¿Qué hay en (%esp) tras el primer movl de la función?
@@ -144,6 +146,7 @@ Para cada nivel de privilegio (0 y 3) existe una pila de ejecución propia de es
 Este manejo es invisible al proceso, excepto cuando hay una excepción por intentar acceder con derechos que no se tienen en ese proceso.
 
 La CPU puede determinar el cambio de ring mediante los valores RPL (Requested Privilege Level) y CPL (Current Privilege Level). Por ejemplo, para realizar una syscall se controla que CPL en %cs sea menor o igual a DPL (Descriptor Privilege Level), y los registros %ss y %esp se salvan únicamente cuando el valor de privilege level del selector es menor a CPL.
+
 
 gdb_hello
 ---------

@@ -76,7 +76,6 @@ Breakpoint 2, boot_alloc (n=<unknown type>) at kern/pmap.c:97
 $4 = 0xf0115000 ""
 
 
-
 page_alloc
 ----------
 Definición de page2kva en pmap.h:

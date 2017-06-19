@@ -57,7 +57,7 @@ entry:
 	# is defined in entrypgdir.c.
 	movl	$(RELOC(entry_pgdir)), %eax
 	movl	%eax, %cr3
-	
+
 	# Enable PSE (4MiB pages)
 	movl	%cr4, %eax
 	orl 	$(CR4_PSE), %eax
