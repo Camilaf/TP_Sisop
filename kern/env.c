@@ -196,7 +196,12 @@ env_setup_vm(struct Env *e)
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
+	
+	// Set VGA buffer page
+/*	struct PageInfo *pp;
+	pp = pa2page(0xb8000);
+	page_insert(e->env_pgdir, pp, (void*) VGA_USER, PTE_W | PTE_U | PTE_MAPPED);
+*/
 	return 0;
 }
 
@@ -257,7 +262,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
-
+	e->env_tf.tf_eflags = e->env_tf.tf_eflags | FL_IF;
+	
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 
@@ -567,6 +573,7 @@ env_run(struct Env *e)
 	lcr3(PADDR(e->env_pgdir));
 	
 	// Step 2
+	unlock_kernel();
 	env_pop_tf(&(e->env_tf));
 	
 }

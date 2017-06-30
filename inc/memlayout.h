@@ -141,6 +141,11 @@
 // Physical address of startup code for non-boot CPUs (APs)
 #define MPENTRY_PADDR	0x7000
 
+// Virtual address of VGA buffer
+//#define VGA_USER 	0x00050000
+//#define VGA_USER 	MMIOBASE
+#define VGA_USER 	(UTEMP + PGSIZE)
+
 #ifndef __ASSEMBLER__
 
 typedef uint32_t pte_t;

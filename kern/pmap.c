@@ -284,9 +284,9 @@ mem_init_mp(void)
 	//             Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	//
-	// LAB 4: Your code here:}
+	// LAB 4: Your code here:
 	int i;
-	for (i = 0; i < NCPU; ++i) { 
+	for (i = 0; i < NCPU; i++) { 
 		uintptr_t kstacktop = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
 		boot_map_region(kern_pgdir, kstacktop - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
 	}
@@ -409,11 +409,14 @@ page_free(struct PageInfo *pp)
 	// pp->pp_link is not NULL.
 
 	if (pp->pp_ref != 0 || pp->pp_link != NULL){
-		panic("page_free: could not free page!");        
+		panic("page_free: could not free page!");       
 	}
 	//the freed page is linked to the first one in
 	// page_free_list and now it points to the freed one
-
+	//if ((page2pa(pp) >= IOPHYSMEM) && (page2pa(pp) < EXTPHYSMEM))
+	//	return;
+	//if (page2pa(pp) == 0xb8000)
+	//	panic("noooo");
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
 }
@@ -480,7 +483,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			pte = page2kva(page);
 		}
 	}
-	
 	//PTX obtains page table index of va
 	return pte + PTX(va); //page table entry pointer
 }
@@ -756,12 +758,14 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 
 		pte_t *pte = pgdir_walk(env->env_pgdir, (const void *) dirInicial, 0);
 		
-		if (! pte) 
+		if (! pte) {
 			user_mem_check_addr = dirInicial;
-		
-		if (!(*pte & (perm | PTE_P))) 
+			break;
+		}
+		if (!(*pte & (perm | PTE_P))) {
 			user_mem_check_addr = dirInicial;
-		
+			break;
+		}
 		dirInicial+= PGSIZE;
 			
 	}
