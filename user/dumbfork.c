@@ -22,6 +22,7 @@ umain(int argc, char **argv)
 	}
 }
 
+
 void
 duppage(envid_t dstenv, void *addr)
 {
