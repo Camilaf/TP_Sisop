@@ -196,12 +196,13 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if (perm & ~PTE_SYSCALL)
 		return -E_INVAL;
 	
+	// Se obtiene el struct Env correspondiente a envid
 	struct Env *env;
 	int err = envid2env(envid, &env, 1);
 	if (err < 0)
 		return err;
 	
-	// Se reserva la pagina fisica con cero como contenido
+	// Se reserva la pagina fisica con contenido cero
 	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 	if (!pp)
 		return -E_NO_MEM;
@@ -250,16 +251,19 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
 	if (((uint32_t) dstva >= UTOP) || ((uint32_t) dstva % PGSIZE != 0))
 		return -E_INVAL;
 	
+	// Se obtiene el struct Env correspondiente a srcenvid
 	struct Env *srcenv;
 	int srcerr = envid2env(srcenvid, &srcenv, 1);
 	if (srcerr < 0)
 		return srcerr;
-		
+	
+	// Se obtiene el struct Env correspondiente a dstenvid	
 	struct Env *dstenv;
 	int dsterr = envid2env(dstenvid, &dstenv, 1);
 	if (dsterr < 0)
 		return dsterr;
-		
+	
+	// Se obtiene la PTE de la page en srcenvid a mapear en dstva
 	pte_t *pte = pgdir_walk(srcenv->env_pgdir, srcva, 0);
 	if (!pte)
 		return -E_INVAL;
@@ -273,6 +277,7 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
 	if (perm & ~PTE_SYSCALL)
 		return -E_INVAL;
 	
+	// Physical page a mapear en dstva de dstenvid
 	struct PageInfo *pp = pa2page(PTE_ADDR(*pte));
 	int res = page_insert(dstenv->env_pgdir, pp, dstva, perm);
 	if (res < 0) {
@@ -299,6 +304,7 @@ sys_page_unmap(envid_t envid, void *va)
 	if (((uint32_t) va >= UTOP) || ((uint32_t) va % PGSIZE != 0))
 		return -E_INVAL;
 	
+	// Se obtiene el struct Env correspondiente a envid
 	struct Env *env;
 	int err = envid2env(envid, &env, 1);
 	if (err < 0)
@@ -362,6 +368,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if (!env->env_ipc_recving)
 		return -E_IPC_NOT_RECV;
 	
+	// Si srcva < UTOP, se va a enviar la page mapeada en srcva
 	if ((uint32_t) srcva < UTOP) {
 		if ((uint32_t) srcva % PGSIZE != 0)
 			return -E_INVAL;
@@ -379,13 +386,15 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		if (!(*pte & PTE_W) && (perm & PTE_W))
 			return -E_INVAL;
 		
+		// Si el target env busca recibir la page, se la enviamos
 		if ((uint32_t) env->env_ipc_dstva < UTOP) {
 			struct PageInfo *pp = pa2page(PTE_ADDR(*pte));
+			
 			int res = page_insert(env->env_pgdir, pp, env->env_ipc_dstva, perm);
 			if (res < 0) {
-				//page_free(pp);
 				return -E_NO_MEM;
 			}
+			
 			env->env_ipc_perm = perm;
 		}
 		else
@@ -394,11 +403,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	else
 		env->env_ipc_perm = 0;
 	
+	// Se actualizan los campos restantes
 	env->env_ipc_recving = 0;
 	env->env_ipc_from = curenv->env_id;
 	env->env_ipc_value = value;
 	
+	// Se marca al target environment como ENV_RUNNABLE 
 	env->env_status = ENV_RUNNABLE;
+	// El target env devuelve cero
 	env->env_tf.tf_regs.reg_eax = 0;
 	
 	return 0;

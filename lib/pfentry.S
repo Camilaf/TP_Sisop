@@ -66,13 +66,18 @@ _pgfault_upcall:
 	//
 	// LAB 4: Your code here.
 	movl %esp, %eax
-	addl $40, %esp 		// Llego a trap-time eip
+	// Llego a trap-time eip:
+	addl $40, %esp 		
 	movl (%esp), %edx
-	addl $8, %esp		// Llego a trap-time esp
-	movl (%esp), %esp	// Se almacena el valor del trap-time stack pointer 	
+	// Llego a trap-time esp:
+	addl $8, %esp
+	// Se almacena el valor del trap-time stack pointer		
+	movl (%esp), %esp	 	
 	pushl %edx
-	subl $4, 48(%eax)	// Se actualiza el trap-time eip debido al push efectuado
-	movl %eax, %esp		// Se recupera el valor de %esp del exception stack
+	// Se actualiza el trap-time eip debido al push efectuado
+	subl $4, 48(%eax)
+	// Se recupera el valor de %esp del exception stack	
+	movl %eax, %esp		
 
 
 	// Restore the trap-time registers.  After you do this, you

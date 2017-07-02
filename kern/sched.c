@@ -30,6 +30,8 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 	int i, num_env;
+	
+	// Si curenv es NULL, comenzamos con el primer environment en envs
 	if (!curenv)
 		num_env = -1;
 	else

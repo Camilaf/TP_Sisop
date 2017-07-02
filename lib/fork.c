@@ -46,6 +46,7 @@ pgfault(struct UTrapframe *utf)
 
 	//panic("pgfault not implemented");
 	addr = ROUNDDOWN(addr, PGSIZE);
+	
 	if ((r = sys_page_alloc(sys_getenvid(), (void *) PFTEMP, PTE_U | PTE_P | PTE_W)) < 0)
 		panic("pgfault: sys_page_alloc: %e", r);
 	memmove(PFTEMP, addr, PGSIZE);
@@ -81,7 +82,7 @@ duppage(envid_t envid, unsigned pn)
 		if ((r = sys_page_map(sys_getenvid(), (void *) (pn*PGSIZE), envid, (void *) (pn*PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0) 
 			return r;
 		
-		// Remap the page copy-on-write in its own address space
+		// Se hace el remap de la copy-on-write page en su propio espacio de direcciones
 		if ((r = sys_page_map(sys_getenvid(), (void *) (pn*PGSIZE), sys_getenvid(), (void *) (pn*PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0) 
 			return r;
 	
@@ -101,9 +102,10 @@ dup_or_share(envid_t dstenv, void *va, int perm) {
 	int r;
 	
 	if (perm & PTE_MAPPED) {
-		if ((r = sys_page_map(0, va, dstenv, va, perm & PTE_SYSCALL)) < 0)
+		if ((r = sys_page_map(0, va, dstenv, va, perm)) < 0)
 			panic("sys_page_map: %e", r);
 	}
+	// Read-only case
 	else if (!(perm & PTE_W)) {
 		if ((r = sys_page_map(0, va, dstenv, va, perm & PTE_SYSCALL)) < 0)
 			panic("sys_page_map: %e", r);

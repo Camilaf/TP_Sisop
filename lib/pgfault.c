@@ -30,6 +30,7 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
 		// First time through!
 		// LAB 4: Your code here.
 		//panic("set_pgfault_handler not implemented");
+		
 		int err_page_alloc = sys_page_alloc(sys_getenvid(), (void *) (UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W);
 		if (err_page_alloc < 0)
 			panic("set_pgfault_handler: sys_page_alloc: %e", err_page_alloc);

@@ -142,9 +142,7 @@
 #define MPENTRY_PADDR	0x7000
 
 // Virtual address of VGA buffer
-//#define VGA_USER 	0x00050000
-//#define VGA_USER 	MMIOBASE
-#define VGA_USER 	(UTEMP + PGSIZE)
+#define VGA_USER 	(USTACKTOP + PGSIZE)
 
 #ifndef __ASSEMBLER__
 

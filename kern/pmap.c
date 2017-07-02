@@ -413,10 +413,6 @@ page_free(struct PageInfo *pp)
 	}
 	//the freed page is linked to the first one in
 	// page_free_list and now it points to the freed one
-	//if ((page2pa(pp) >= IOPHYSMEM) && (page2pa(pp) < EXTPHYSMEM))
-	//	return;
-	//if (page2pa(pp) == 0xb8000)
-	//	panic("noooo");
 	pp->pp_link = page_free_list;
 	page_free_list = pp;
 }

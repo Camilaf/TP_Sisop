@@ -387,14 +387,18 @@ page_fault_handler(struct Trapframe *tf)
 	if (curenv->env_pgfault_upcall) {
 		uintptr_t utf_ptr;
 		
+		// Vemos si tf->tf_esp ya se encuentra en el user exception stack
 		if (((UXSTACKTOP - PGSIZE) <= tf->tf_esp) && (tf->tf_esp < UXSTACKTOP))
+			// Comienza el nuevo stack frame debajo del current tf->tf_esp
+			// Se deja espacio para la empty 32-bit word y para el struct UTrapframe 
 			utf_ptr = tf->tf_esp - 4 - sizeof(struct UTrapframe);
 		else
 			utf_ptr = UXSTACKTOP - sizeof(struct UTrapframe);
 			
 		user_mem_assert(curenv, (void *) utf_ptr, PGSIZE, PTE_W);
-		struct UTrapframe *utf = (struct UTrapframe *) utf_ptr;
 		
+		// Configuramos el page fault stack frame del user exception stack 
+		struct UTrapframe *utf = (struct UTrapframe *) utf_ptr;
 		utf->utf_fault_va = fault_va;
 		utf->utf_err = tf->tf_err;
 		utf->utf_regs = tf->tf_regs;
@@ -402,34 +406,14 @@ page_fault_handler(struct Trapframe *tf)
 		utf->utf_eflags = tf->tf_eflags;
 		utf->utf_esp = tf->tf_esp;
 		
+		// Queremos que se haga el stack switch pero usando el user exception stack
 		curenv->env_tf.tf_esp = utf_ptr;
 		// Modificamos tf_eip para que el iret nos lleve a la page fault upcall
 		curenv->env_tf.tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
+		
 		env_run(curenv);
 	}
 
-/*
-	if (curenv->env_pgfault_upcall) {
-		struct UTrapframe *utf;
-		uintptr_t utf_addr;
-		if (UXSTACKTOP-PGSIZE<=tf->tf_esp && tf->tf_esp<=UXSTACKTOP-1)
-			utf_addr = tf->tf_esp - sizeof(struct UTrapframe) - 4;
-		else 
-			utf_addr = UXSTACKTOP - sizeof(struct UTrapframe);
-		user_mem_assert(curenv, (void*)utf_addr, 1, PTE_W);//1 is enough
-		utf = (struct UTrapframe *) utf_addr;
-
-		utf->utf_fault_va = fault_va;
-		utf->utf_err = tf->tf_err;
-		utf->utf_regs = tf->tf_regs;
-		utf->utf_eip = tf->tf_eip;
-		utf->utf_eflags = tf->tf_eflags;
-		utf->utf_esp = tf->tf_esp;
-
-		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
-		curenv->env_tf.tf_esp = utf_addr;
-		env_run(curenv);
-	}*/
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 	        curenv->env_id,
