@@ -1,0 +1,1420 @@
+diff --git a/.clang-files b/.clang-files
+index 8a6f876..c6bd0ad 100644
+--- a/.clang-files
++++ b/.clang-files
+@@ -1,5 +1,8 @@
+ kern/env.c
+ kern/kdebug.c
++kern/sched.c
+ kern/syscall.c
+ kern/trap.c
++lib/fork.c
++lib/ipc.c
+ lib/libmain.c
+diff --git a/grade-lab4 b/grade-lab4
+index 77e7cf4..3eb4f0a 100755
+--- a/grade-lab4
++++ b/grade-lab4
+@@ -15,6 +15,42 @@ def E(s, trim=False):
+                   lambda m: tmpl % (0x1000 + int(m.group(1))-1), s)
+ 
+ @test(1)
++def test_helloinit():
++    r.user_test("hello")
++    r.match(E(".00000000. new env $E1"),
++            "hello, world",
++            E(".$E1. exiting gracefully"),
++            E(".$E1. free env $E1"))
++
++end_part("0")
++
++@test(1)
++def test_yield():
++    r.user_test("yield")
++    r.match(E(".00000000. new env $E1"),
++            E(".00000000. new env $E2"),
++            E("Hello, I am environment $E1"),
++            E("Hello, I am environment $E2"),
++            E("Back in environment $E1, iteration 1"),
++            E("Back in environment $E2, iteration 1"),
++            E("Back in environment $E1, iteration 4"),
++            E("Back in environment $E2, iteration 4"),
++            E(".$E1. exiting gracefully"),
++            E(".$E2. exiting gracefully"))
++
++@test(1)
++def test_spin0():
++    r.user_test("spin0", timeout=2.5)
++    r.match(E(".00000000. new env $E1"),
++            E(".00000000. new env $E2"),
++            E("I am $E1 and my spin will go on #1"),
++            E("I am $E1 and my spin will go on #99"),
++            E("I am $E2 and I like my interrupt #1"),
++            E("I am $E2 and I like my interrupt #4"))
++
++end_part("1")
++
++@test(1)
+ def test_dumbfork():
+     r.user_test("dumbfork")
+     r.match(E(".00000000. new env $E1"),
+@@ -29,77 +65,6 @@ def test_dumbfork():
+             E(".$E2. exiting gracefully"),
+             E(".$E2. free env $E2"))
+ 
+-end_part("A")
+-
+-@test(1)
+-def test_faultread():
+-    r.user_test("faultread")
+-    r.match(E(".$E1. user fault va 00000000 ip 008....."),
+-            "TRAP frame at 0xf....... from CPU .",
+-            "  trap 0x0000000e Page Fault",
+-            "  err  0x00000004.*",
+-            E(".$E1. free env $E1"),
+-            no=["I read ........ from location 0."])
+-
+-@test(1)
+-def test_faultwrite():
+-    r.user_test("faultwrite")
+-    r.match(E(".$E1. user fault va 00000000 ip 008....."),
+-            "TRAP frame at 0xf....... from CPU .",
+-            "  trap 0x0000000e Page Fault",
+-            "  err  0x00000006.*",
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultdie():
+-    r.user_test("faultdie")
+-    r.match("i faulted at va deadbeef, err 6",
+-            E(".$E1. exiting gracefully"),
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultregs():
+-    r.user_test("faultregs")
+-    r.match("Registers in UTrapframe OK",
+-            "Registers after page-fault OK",
+-            no=["Registers in UTrapframe MISMATCH",
+-                "Registers after page-fault MISMATCH"])
+-
+-@test(1)
+-def test_faultalloc():
+-    r.user_test("faultalloc")
+-    r.match("fault deadbeef",
+-            "this string was faulted in at deadbeef",
+-            "fault cafebffe",
+-            "fault cafec000",
+-            "this string was faulted in at cafebffe",
+-            E(".$E1. exiting gracefully"),
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultallocbad():
+-    r.user_test("faultallocbad")
+-    r.match(E(".$E1. user_mem_check assertion failure for va deadbeef"),
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultnostack():
+-    r.user_test("faultnostack")
+-    r.match(E(".$E1. user_mem_check assertion failure for va eebff..."),
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultbadhandler():
+-    r.user_test("faultbadhandler")
+-    r.match(E(".$E1. user_mem_check assertion failure for va (deadb|eebfe)..."),
+-            E(".$E1. free env $E1"))
+-
+-@test(1)
+-def test_faultevilhandler():
+-    r.user_test("faultevilhandler")
+-    r.match(E(".$E1. user_mem_check assertion failure for va (f0100|eebfe)..."),
+-            E(".$E1. free env $E1"))
+-
+ @test(1)
+ def test_forktree():
+     r.user_test("forktree")
+@@ -116,8 +81,6 @@ def test_forktree():
+             ".0000200.. exiting gracefully",
+             ".0000200.. free env 0000200.")
+ 
+-end_part("B")
+-
+ @test(1)
+ def test_spin():
+     r.user_test("spin")
+@@ -132,6 +95,20 @@ def test_spin():
+             E(".$E1. exiting gracefully"),
+             E(".$E1. free env $E1"))
+ 
++end_part("2")
++
++@test(1)
++def test_yield2():
++    r.user_test("yield", make_args=["CPUS=2"])
++    r.match(E(".00000000. new env $E1"),
++            E(".00000000. new env $E2"),
++            "Hello, I am environment 0000100., cpu 0",
++            "Hello, I am environment 0000100., cpu 1",
++            "Back in environment 0000100., iteration 4, cpu 0",
++            "Back in environment 0000100., iteration 4, cpu 1",
++            E(".$E1. exiting gracefully"),
++            E(".$E2. exiting gracefully"))
++
+ @test(1)
+ def test_stresssched():
+     r.user_test("stresssched", make_args=["CPUS=4"])
+@@ -141,6 +118,8 @@ def test_stresssched():
+             ".000010... stresssched on CPU 3",
+             no=[".*ran on two CPUs at once"])
+ 
++end_part("3")
++
+ @test(1)
+ def test_sendpage():
+     r.user_test("sendpage", make_args=["CPUS=2"])
+@@ -185,6 +164,77 @@ def test_primes():
+             E("CPU .: 11 .$E6. new env $E7"),
+             E("CPU .: 1877 .$E289. new env $E290"))
+ 
+-end_part("C")
++end_part("4")
++
++@test(1)
++def test_faultread():
++    r.user_test("faultread")
++    r.match(E(".$E1. user fault va 00000000 ip 008....."),
++            "TRAP frame at 0xf....... from CPU .",
++            "  trap 0x0000000e Page Fault",
++            "  err  0x00000004.*",
++            E(".$E1. free env $E1"),
++            no=["I read ........ from location 0."])
++
++@test(1)
++def test_faultwrite():
++    r.user_test("faultwrite")
++    r.match(E(".$E1. user fault va 00000000 ip 008....."),
++            "TRAP frame at 0xf....... from CPU .",
++            "  trap 0x0000000e Page Fault",
++            "  err  0x00000006.*",
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultdie():
++    r.user_test("faultdie")
++    r.match("i faulted at va deadbeef, err 6",
++            E(".$E1. exiting gracefully"),
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultregs():
++    r.user_test("faultregs")
++    r.match("Registers in UTrapframe OK",
++            "Registers after page-fault OK",
++            no=["Registers in UTrapframe MISMATCH",
++                "Registers after page-fault MISMATCH"])
++
++@test(1)
++def test_faultalloc():
++    r.user_test("faultalloc")
++    r.match("fault deadbeef",
++            "this string was faulted in at deadbeef",
++            "fault cafebffe",
++            "fault cafec000",
++            "this string was faulted in at cafebffe",
++            E(".$E1. exiting gracefully"),
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultallocbad():
++    r.user_test("faultallocbad")
++    r.match(E(".$E1. user_mem_check assertion failure for va deadbeef"),
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultnostack():
++    r.user_test("faultnostack")
++    r.match(E(".$E1. user_mem_check assertion failure for va eebff..."),
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultbadhandler():
++    r.user_test("faultbadhandler")
++    r.match(E(".$E1. user_mem_check assertion failure for va (deadb|eebfe)..."),
++            E(".$E1. free env $E1"))
++
++@test(1)
++def test_faultevilhandler():
++    r.user_test("faultevilhandler")
++    r.match(E(".$E1. user_mem_check assertion failure for va (f0100|eebfe)..."),
++            E(".$E1. free env $E1"))
++
++end_part("5")
+ 
+ run_tests()
+diff --git a/inc/memlayout.h b/inc/memlayout.h
+index 9b4f3c4..b3afbea 100644
+--- a/inc/memlayout.h
++++ b/inc/memlayout.h
+@@ -141,6 +141,9 @@
+ // Physical address of startup code for non-boot CPUs (APs)
+ #define MPENTRY_PADDR	0x7000
+ 
++// Virtual address of VGA buffer
++#define VGA_USER 	(USTACKTOP + PGSIZE)
++
+ #ifndef __ASSEMBLER__
+ 
+ typedef uint32_t pte_t;
+diff --git a/inc/mmu.h b/inc/mmu.h
+index 7598413..14f5733 100644
+--- a/inc/mmu.h
++++ b/inc/mmu.h
+@@ -64,6 +64,7 @@
+ #define PTE_D		0x040	// Dirty
+ #define PTE_PS		0x080	// Page Size
+ #define PTE_G		0x100	// Global
++#define PTE_MAPPED 	0x200	// Never to be be copied, eg. MMIO
+ 
+ // The PTE_AVAIL bits aren't used by the kernel or interpreted by the
+ // hardware, so user processes are allowed to set them arbitrarily.
+diff --git a/kern/Makefrag b/kern/Makefrag
+index 63e91c6..0e9f682 100644
+--- a/kern/Makefrag
++++ b/kern/Makefrag
+@@ -72,6 +72,8 @@ KERN_BINFILES +=	user/idle \
+ 			user/forktree \
+ 			user/sendpage \
+ 			user/spin \
++                        user/spin0 \
++                        user/contador \
+ 			user/fairness \
+ 			user/pingpong \
+ 			user/pingpongs \
+diff --git a/kern/env.c b/kern/env.c
+index ec16de3..86ed177 100644
+--- a/kern/env.c
++++ b/kern/env.c
+@@ -196,7 +196,12 @@ env_setup_vm(struct Env *e)
+ 	// UVPT maps the env's own page table read-only.
+ 	// Permissions: kernel R, user R
+ 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
+-
++	
++	// Set VGA buffer page
++/*	struct PageInfo *pp;
++	pp = pa2page(0xb8000);
++	page_insert(e->env_pgdir, pp, (void*) VGA_USER, PTE_W | PTE_U | PTE_MAPPED);
++*/
+ 	return 0;
+ }
+ 
+@@ -257,7 +262,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
+ 
+ 	// Enable interrupts while in user mode.
+ 	// LAB 4: Your code here.
+-
++	e->env_tf.tf_eflags = e->env_tf.tf_eflags | FL_IF;
++	
+ 	// Clear the page fault handler until user installs one.
+ 	e->env_pgfault_upcall = 0;
+ 
+@@ -567,6 +573,7 @@ env_run(struct Env *e)
+ 	lcr3(PADDR(e->env_pgdir));
+ 	
+ 	// Step 2
++	unlock_kernel();
+ 	env_pop_tf(&(e->env_tf));
+ 	
+ }
+diff --git a/kern/init.c b/kern/init.c
+index fb9889c..7741f1b 100644
+--- a/kern/init.c
++++ b/kern/init.c
+@@ -50,23 +50,39 @@ i386_init(void)
+ 
+ 	// Acquire the big kernel lock before waking up APs
+ 	// Your code here:
+-
++	lock_kernel();
++	
+ 	// Starting non-boot CPUs
+ 	boot_aps();
+ 
+ #if defined(TEST)
+ 	// Don't touch -- used by grading script!
+ 	ENV_CREATE(TEST, ENV_TYPE_USER);
++
++	// Hack horrible mal para la corrección de la parte 1.
++	// -d
++	#define STRING(x) STRNG_(x)
++	#define STRNG_(x) #x
++	#define TESTED(x) (__builtin_strcmp(#x, STRING(TEST)) == 0)
++
++	if (TESTED(user_yield) || TESTED(user_spin0))
++		ENV_CREATE(TEST, ENV_TYPE_USER);
+ #else
+ 	// Touch all you want.
+-	ENV_CREATE(user_hello, ENV_TYPE_USER);
+-	ENV_CREATE(user_hello, ENV_TYPE_USER);
+-	ENV_CREATE(user_hello, ENV_TYPE_USER);
++//	ENV_CREATE(user_hello, ENV_TYPE_USER);
++//	ENV_CREATE(user_hello, ENV_TYPE_USER);
++//	ENV_CREATE(user_hello, ENV_TYPE_USER);
++//	ENV_CREATE(user_yield, ENV_TYPE_USER);
++//	ENV_CREATE(user_yield, ENV_TYPE_USER);
++//	ENV_CREATE(user_yield, ENV_TYPE_USER);
++	ENV_CREATE(user_contador, ENV_TYPE_USER);
++	ENV_CREATE(user_contador, ENV_TYPE_USER);
++	ENV_CREATE(user_contador, ENV_TYPE_USER);
+ #endif // TEST*
+ 
+ 	// Eliminar esta llamada una vez completada la parte 1
+ 	// e implementado sched_yield().
+-	env_run(&envs[0]);
++	//env_run(&envs[0]);
+ 
+ 	// Schedule and run the first user environment!
+ 	sched_yield();
+@@ -122,7 +138,9 @@ mp_main(void)
+ 	// only one CPU can enter the scheduler at a time!
+ 	//
+ 	// Your code here:
+-
++	lock_kernel();
++	sched_yield();
++	
+ 	// Remove this after you finish Exercise 4
+ 	for (;;);
+ }
+diff --git a/kern/mpentry.S b/kern/mpentry.S
+index 72dd827..9eb6d4d 100644
+--- a/kern/mpentry.S
++++ b/kern/mpentry.S
+@@ -64,6 +64,12 @@ start32:
+ 	# we are still running at a low EIP.
+ 	movl    $(RELOC(entry_pgdir)), %eax
+ 	movl    %eax, %cr3
++	
++	# Enable PSE (4MiB pages)
++	movl	%cr4, %eax
++	orl 	$(CR4_PSE), %eax
++	movl	%eax, %cr4
++	
+ 	# Turn on paging.
+ 	movl    %cr0, %eax
+ 	orl     $(CR0_PE|CR0_PG|CR0_WP), %eax
+diff --git a/kern/pmap.c b/kern/pmap.c
+index 47c68ed..f0c32d6 100644
+--- a/kern/pmap.c
++++ b/kern/pmap.c
+@@ -285,6 +285,11 @@ mem_init_mp(void)
+ 	//     Permissions: kernel RW, user NONE
+ 	//
+ 	// LAB 4: Your code here:
++	int i;
++	for (i = 0; i < NCPU; i++) { 
++		uintptr_t kstacktop = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
++		boot_map_region(kern_pgdir, kstacktop - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
++	}
+ 
+ }
+ 
+@@ -326,14 +331,23 @@ page_init(void)
+ 	// Change the code to reflect this.
+ 	// NB: DO NOT actually touch the physical memory corresponding to
+ 	// free pages!
++	
++	_Static_assert(MPENTRY_PADDR % PGSIZE == 0, "MPENTRY_PADDR is not page-aligned");
++	
+ 	size_t i;
+-
+-	for (i = 1; i < npages_basemem; i++) { // 1) i = 1 because 0 in use (so not add)
++	for (i = 1; i < PGNUM(MPENTRY_PADDR); i++) { // 1) i = 1 because 0 in use (so not add)
+ 		// 2)
+ 		pages[i].pp_ref = 0;
+ 		pages[i].pp_link = page_free_list;
+ 		page_free_list = &pages[i];
+ 	}
++	// 2)
++	i++;
++	for (; i < npages_basemem; i++) {
++		pages[i].pp_ref = 0;
++		pages[i].pp_link = page_free_list;
++		page_free_list = &pages[i];
++	}
+ 	
+ 	//3) IO not allocated
+ 	
+@@ -395,11 +409,10 @@ page_free(struct PageInfo *pp)
+ 	// pp->pp_link is not NULL.
+ 
+ 	if (pp->pp_ref != 0 || pp->pp_link != NULL){
+-		panic("page_free: could not free page!");        
++		panic("page_free: could not free page!");       
+ 	}
+ 	//the freed page is linked to the first one in
+ 	// page_free_list and now it points to the freed one
+-
+ 	pp->pp_link = page_free_list;
+ 	page_free_list = pp;
+ }
+@@ -466,7 +479,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
+ 			pte = page2kva(page);
+ 		}
+ 	}
+-	
+ 	//PTX obtains page table index of va
+ 	return pte + PTX(va); //page table entry pointer
+ }
+@@ -493,7 +505,7 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
+ 		pte_t *pte = pgdir_walk(pgdir, (void *)va, 1);	
+ 		
+ 		if (!pte)
+-				panic("boot_map_region: could not set pte");
++			panic("boot_map_region: could not set pte");
+ 				
+ 		//associate.
+ 		*pte = pa | perm | PTE_P;
+@@ -693,7 +705,17 @@ mmio_map_region(physaddr_t pa, size_t size)
+ 	// Hint: The staff solution uses boot_map_region.
+ 	//
+ 	// Your code here:
+-	panic("mmio_map_region not implemented");
++	//panic("mmio_map_region not implemented");
++	
++	uintptr_t result = base;
++	size_t new_size = ROUNDUP(base + size, PGSIZE) - base;
++	
++	if (base + new_size >= MMIOLIM)
++		panic("mmio_map_region: reservation overflow");
++		
++	boot_map_region(kern_pgdir, base, new_size, pa, PTE_PCD | PTE_PWT | PTE_W);
++	base = base + new_size;
++	return (void*) result;
+ }
+ 
+ static uintptr_t user_mem_check_addr;
+@@ -732,12 +754,14 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
+ 
+ 		pte_t *pte = pgdir_walk(env->env_pgdir, (const void *) dirInicial, 0);
+ 		
+-		if (! pte) 
++		if (! pte) {
+ 			user_mem_check_addr = dirInicial;
+-		
+-		if (!(*pte & (perm | PTE_P))) 
++			break;
++		}
++		if (!(*pte & (perm | PTE_P))) {
+ 			user_mem_check_addr = dirInicial;
+-		
++			break;
++		}
+ 		dirInicial+= PGSIZE;
+ 			
+ 	}
+diff --git a/kern/sched.c b/kern/sched.c
+index 7726e32..e497634 100644
+--- a/kern/sched.c
++++ b/kern/sched.c
+@@ -29,7 +29,24 @@ sched_yield(void)
+ 	// below to halt the cpu.
+ 
+ 	// LAB 4: Your code here.
+-
++	int i, num_env;
++	
++	// Si curenv es NULL, comenzamos con el primer environment en envs
++	if (!curenv)
++		num_env = -1;
++	else
++		num_env = curenv - &envs[0];
++		
++	for (i = 0; i < NENV; i++) {
++		num_env = (num_env + 1) % NENV;
++		
++		if (envs[num_env].env_status == ENV_RUNNABLE)
++			env_run(&envs[num_env]);
++	}
++	
++	if (curenv && (curenv->env_status == ENV_RUNNING))
++		env_run(curenv);
++	
+ 	// sched_halt never returns
+ 	sched_halt();
+ }
+diff --git a/kern/syscall.c b/kern/syscall.c
+index 08a978d..90f4bd9 100644
+--- a/kern/syscall.c
++++ b/kern/syscall.c
+@@ -87,7 +87,20 @@ sys_exofork(void)
+ 	// will appear to return 0.
+ 
+ 	// LAB 4: Your code here.
+-	panic("sys_exofork not implemented");
++	//panic("sys_exofork not implemented");
++		
++	struct Env *newenv;
++	int err = env_alloc(&newenv, curenv->env_id);
++	if (err < 0)
++		return err;
++	
++	newenv->env_status = ENV_NOT_RUNNABLE;
++	memcpy(&newenv->env_tf, &curenv->env_tf, sizeof(struct Trapframe));
++	
++	// Cambiamos el return value del child segun la calling convention de x86
++	newenv->env_tf.tf_regs.reg_eax = 0;
++	return newenv->env_id;
++	
+ }
+ 
+ // Set envid's env_status to status, which must be ENV_RUNNABLE
+@@ -107,7 +120,19 @@ sys_env_set_status(envid_t envid, int status)
+ 	// envid's status.
+ 
+ 	// LAB 4: Your code here.
+-	panic("sys_env_set_status not implemented");
++	//panic("sys_env_set_status not implemented");
++	
++	struct Env *env;
++	int err = envid2env(envid, &env, 1);
++	if (err < 0)
++		return err;
++		
++	if ((status != ENV_RUNNABLE) && (status != ENV_NOT_RUNNABLE))
++		return -E_INVAL;
++		
++	env->env_status = status;
++	return 0;
++
+ }
+ 
+ // Set the page fault upcall for 'envid' by modifying the corresponding struct
+@@ -122,7 +147,15 @@ static int
+ sys_env_set_pgfault_upcall(envid_t envid, void *func)
+ {
+ 	// LAB 4: Your code here.
+-	panic("sys_env_set_pgfault_upcall not implemented");
++	//panic("sys_env_set_pgfault_upcall not implemented");
++	
++	struct Env *env;
++	int err = envid2env(envid, &env, 1);
++	if (err < 0)
++		return err;
++		
++	env->env_pgfault_upcall = func;
++	return 0;
+ }
+ 
+ // Allocate a page of memory and map it at 'va' with permission
+@@ -152,7 +185,35 @@ sys_page_alloc(envid_t envid, void *va, int perm)
+ 	//   allocated!
+ 
+ 	// LAB 4: Your code here.
+-	panic("sys_page_alloc not implemented");
++	//panic("sys_page_alloc not implemented");
++	
++	if (((uint32_t) va >= UTOP) || ((uint32_t) va % PGSIZE != 0))
++		return -E_INVAL;
++	
++	if (!(perm & PTE_U) || !(perm & PTE_P))
++		return -E_INVAL;
++		
++	if (perm & ~PTE_SYSCALL)
++		return -E_INVAL;
++	
++	// Se obtiene el struct Env correspondiente a envid
++	struct Env *env;
++	int err = envid2env(envid, &env, 1);
++	if (err < 0)
++		return err;
++	
++	// Se reserva la pagina fisica con contenido cero
++	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
++	if (!pp)
++		return -E_NO_MEM;
++		
++	int res = page_insert(env->env_pgdir, pp, va, perm);
++	if (res < 0) {
++		page_free(pp);
++		return -E_NO_MEM;
++	}
++	
++	return 0;		
+ }
+ 
+ // Map the page of memory at 'srcva' in srcenvid's address space
+@@ -182,7 +243,47 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
+ 	//   check the current permissions on the page.
+ 
+ 	// LAB 4: Your code here.
+-	panic("sys_page_map not implemented");
++	//panic("sys_page_map not implemented");
++	
++	if (((uint32_t) srcva >= UTOP) || ((uint32_t) srcva % PGSIZE != 0))
++		return -E_INVAL;
++	
++	if (((uint32_t) dstva >= UTOP) || ((uint32_t) dstva % PGSIZE != 0))
++		return -E_INVAL;
++	
++	// Se obtiene el struct Env correspondiente a srcenvid
++	struct Env *srcenv;
++	int srcerr = envid2env(srcenvid, &srcenv, 1);
++	if (srcerr < 0)
++		return srcerr;
++	
++	// Se obtiene el struct Env correspondiente a dstenvid	
++	struct Env *dstenv;
++	int dsterr = envid2env(dstenvid, &dstenv, 1);
++	if (dsterr < 0)
++		return dsterr;
++	
++	// Se obtiene la PTE de la page en srcenvid a mapear en dstva
++	pte_t *pte = pgdir_walk(srcenv->env_pgdir, srcva, 0);
++	if (!pte)
++		return -E_INVAL;
++	
++	if (!(perm & PTE_U) || !(perm & PTE_P))
++		return -E_INVAL;
++
++	if (!(*pte & PTE_W) && (perm & PTE_W))
++		return -E_INVAL;
++		
++	if (perm & ~PTE_SYSCALL)
++		return -E_INVAL;
++	
++	// Physical page a mapear en dstva de dstenvid
++	struct PageInfo *pp = pa2page(PTE_ADDR(*pte));
++	int res = page_insert(dstenv->env_pgdir, pp, dstva, perm);
++	if (res < 0) {
++		return -E_NO_MEM;
++	}
++	return 0;
+ }
+ 
+ // Unmap the page of memory at 'va' in the address space of 'envid'.
+@@ -198,7 +299,20 @@ sys_page_unmap(envid_t envid, void *va)
+ 	// Hint: This function is a wrapper around page_remove().
+ 
+ 	// LAB 4: Your code here.
+-	panic("sys_page_unmap not implemented");
++	//panic("sys_page_unmap not implemented");
++	
++	if (((uint32_t) va >= UTOP) || ((uint32_t) va % PGSIZE != 0))
++		return -E_INVAL;
++	
++	// Se obtiene el struct Env correspondiente a envid
++	struct Env *env;
++	int err = envid2env(envid, &env, 1);
++	if (err < 0)
++		return err;
++	
++	page_remove(env->env_pgdir, va);
++	
++	return 0;
+ }
+ 
+ // Try to send 'value' to the target env 'envid'.
+@@ -239,11 +353,67 @@ sys_page_unmap(envid_t envid, void *va)
+ //		current environment's address space.
+ //	-E_NO_MEM if there's not enough memory to map srcva in envid's
+ //		address space.
++
+ static int
+ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
+ {
+ 	// LAB 4: Your code here.
+-	panic("sys_ipc_try_send not implemented");
++	//panic("sys_ipc_try_send not implemented");
++	
++	struct Env *env;
++	int err = envid2env(envid, &env, 0);
++	if (err < 0)
++		return err;
++	
++	if (!env->env_ipc_recving)
++		return -E_IPC_NOT_RECV;
++	
++	// Si srcva < UTOP, se va a enviar la page mapeada en srcva
++	if ((uint32_t) srcva < UTOP) {
++		if ((uint32_t) srcva % PGSIZE != 0)
++			return -E_INVAL;
++			
++		pte_t *pte = pgdir_walk(curenv->env_pgdir, srcva, 0);
++		if (!pte)
++			return -E_INVAL;
++			
++		if (!(perm & PTE_U) || !(perm & PTE_P))
++			return -E_INVAL;
++		
++		if (perm & ~PTE_SYSCALL)
++			return -E_INVAL;
++		
++		if (!(*pte & PTE_W) && (perm & PTE_W))
++			return -E_INVAL;
++		
++		// Si el target env busca recibir la page, se la enviamos
++		if ((uint32_t) env->env_ipc_dstva < UTOP) {
++			struct PageInfo *pp = pa2page(PTE_ADDR(*pte));
++			
++			int res = page_insert(env->env_pgdir, pp, env->env_ipc_dstva, perm);
++			if (res < 0) {
++				return -E_NO_MEM;
++			}
++			
++			env->env_ipc_perm = perm;
++		}
++		else
++			env->env_ipc_perm = 0;
++	}
++	else
++		env->env_ipc_perm = 0;
++	
++	// Se actualizan los campos restantes
++	env->env_ipc_recving = 0;
++	env->env_ipc_from = curenv->env_id;
++	env->env_ipc_value = value;
++	
++	// Se marca al target environment como ENV_RUNNABLE 
++	env->env_status = ENV_RUNNABLE;
++	// El target env devuelve cero
++	env->env_tf.tf_regs.reg_eax = 0;
++	
++	return 0;
+ }
+ 
+ // Block until a value is ready.  Record that you want to receive
+@@ -261,7 +431,16 @@ static int
+ sys_ipc_recv(void *dstva)
+ {
+ 	// LAB 4: Your code here.
+-	panic("sys_ipc_recv not implemented");
++	//panic("sys_ipc_recv not implemented");
++	
++	if (((uint32_t) dstva < UTOP) && ((uint32_t) dstva % PGSIZE != 0))
++		return -E_INVAL;
++	
++	curenv->env_ipc_recving = 1;
++	curenv->env_ipc_dstva = dstva;
++	curenv->env_status = ENV_NOT_RUNNABLE;
++	sys_yield();
++	
+ 	return 0;
+ }
+ 
+@@ -286,7 +465,25 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
+ 		return sys_getenvid();
+ 	case SYS_env_destroy:
+ 		return sys_env_destroy(a1);
+-		
++	case SYS_yield:
++		sys_yield();
++		return 0;
++	case SYS_exofork:
++		return sys_exofork();
++	case SYS_env_set_status:
++		return sys_env_set_status(a1, a2);
++	case SYS_page_alloc:
++		return sys_page_alloc(a1, (void *) a2, a3);
++	case SYS_page_map:
++		return sys_page_map(a1, (void *) a2, a3, (void *) a4, a5);
++	case SYS_page_unmap:
++		return sys_page_unmap(a1, (void *) a2);
++	case SYS_ipc_try_send:
++		return sys_ipc_try_send(a1, a2, (void *) a3, a4);
++	case SYS_ipc_recv:
++		return sys_ipc_recv((void *) a1);
++	case SYS_env_set_pgfault_upcall:
++		return sys_env_set_pgfault_upcall(a1, (void *) a2);
+ 	default:
+ 		return -E_INVAL;
+ 	}
+diff --git a/kern/trap.c b/kern/trap.c
+index e207c70..16d47d0 100644
+--- a/kern/trap.c
++++ b/kern/trap.c
+@@ -52,6 +52,8 @@ extern void trap_19();
+ 
+ extern void trap_48();
+ 
++extern void irq_0();
++
+ static const char *
+ trapname(int trapno)
+ {
+@@ -119,6 +121,8 @@ trap_init(void)
+ 	SETGATE(idt[T_SIMDERR], 0, GD_KT, trap_19, 0);
+ 	
+ 	SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_48, 3);
++	
++	SETGATE(idt[IRQ_TIMER + IRQ_OFFSET], 0, GD_KT, irq_0, 0);
+ 
+ 	// Per-CPU setup
+ 	trap_init_percpu();
+@@ -153,20 +157,19 @@ trap_init_percpu(void)
+ 
+ 	// Setup a TSS so that we get the right stack
+ 	// when we trap to the kernel.
+-	ts.ts_esp0 = KSTACKTOP;
+-	ts.ts_ss0 = GD_KD;
++	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - thiscpu->cpu_id * (KSTKSIZE + KSTKGAP);
++	thiscpu->cpu_ts.ts_ss0 = GD_KD;
++	
++	thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
+ 	
+-	ts.ts_iomb = sizeof(struct Taskstate);
+-
+-
+ 	// Initialize the TSS slot of the gdt.
+-	gdt[GD_TSS0 >> 3] =
+-	        SEG16(STS_T32A, (uint32_t)(&ts), sizeof(struct Taskstate) - 1, 0);
+-	gdt[GD_TSS0 >> 3].sd_s = 0;
+-
++	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] =
++	        SEG16(STS_T32A, (uint32_t)(&thiscpu->cpu_ts), sizeof(struct Taskstate) - 1, 0);
++	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0;
++	
+ 	// Load the TSS selector (like other segment selectors, the
+ 	// bottom three bits are special; we leave them 0)
+-	ltr(GD_TSS0);
++	ltr(((GD_TSS0 >> 3) + thiscpu->cpu_id) << 3);
+ 
+ 	// Load the IDT
+ 	lidt(&idt_pd);
+@@ -255,6 +258,10 @@ trap_dispatch(struct Trapframe *tf)
+ 	// Handle clock interrupts. Don't forget to acknowledge the
+ 	// interrupt using lapic_eoi() before calling the scheduler!
+ 	// LAB 4: Your code here.
++	case (IRQ_OFFSET + IRQ_TIMER):
++		lapic_eoi();
++		sched_yield();
++		break;
+ 		
+ 	default:
+ 		// Unexpected trap: The user process or the kernel has a bug.
+@@ -296,7 +303,8 @@ trap(struct Trapframe *tf)
+ 		// serious kernel work.
+ 		// LAB 4: Your code here.
+ 		assert(curenv);
+-
++		lock_kernel();
++		
+ 		// Garbage collect if current enviroment is a zombie
+ 		if (curenv->env_status == ENV_DYING) {
+ 			env_free(curenv);
+@@ -376,6 +384,35 @@ page_fault_handler(struct Trapframe *tf)
+ 
+ 	// LAB 4: Your code here.
+ 
++	if (curenv->env_pgfault_upcall) {
++		uintptr_t utf_ptr;
++		
++		// Vemos si tf->tf_esp ya se encuentra en el user exception stack
++		if (((UXSTACKTOP - PGSIZE) <= tf->tf_esp) && (tf->tf_esp < UXSTACKTOP))
++			// Comienza el nuevo stack frame debajo del current tf->tf_esp
++			// Se deja espacio para la empty 32-bit word y para el struct UTrapframe 
++			utf_ptr = tf->tf_esp - 4 - sizeof(struct UTrapframe);
++		else
++			utf_ptr = UXSTACKTOP - sizeof(struct UTrapframe);
++			
++		user_mem_assert(curenv, (void *) utf_ptr, PGSIZE, PTE_W);
++		
++		// Configuramos el page fault stack frame del user exception stack 
++		struct UTrapframe *utf = (struct UTrapframe *) utf_ptr;
++		utf->utf_fault_va = fault_va;
++		utf->utf_err = tf->tf_err;
++		utf->utf_regs = tf->tf_regs;
++		utf->utf_eip = tf->tf_eip;
++		utf->utf_eflags = tf->tf_eflags;
++		utf->utf_esp = tf->tf_esp;
++		
++		// Queremos que se haga el stack switch pero usando el user exception stack
++		curenv->env_tf.tf_esp = utf_ptr;
++		// Modificamos tf_eip para que el iret nos lleve a la page fault upcall
++		curenv->env_tf.tf_eip = (uintptr_t) curenv->env_pgfault_upcall;
++		
++		env_run(curenv);
++	}
+ 
+ 	// Destroy the environment that caused the fault.
+ 	cprintf("[%08x] user fault va %08x ip %08x\n",
+diff --git a/kern/trapentry.S b/kern/trapentry.S
+index 3e056c8..0f6598f 100644
+--- a/kern/trapentry.S
++++ b/kern/trapentry.S
+@@ -70,6 +70,8 @@ TRAPHANDLER_NOEC(trap_19, T_SIMDERR)
+ 
+ TRAPHANDLER_NOEC(trap_48, T_SYSCALL)
+ 
++TRAPHANDLER_NOEC(irq_0, IRQ_TIMER + IRQ_OFFSET)
++
+ 
+ /*
+  * Lab 3: Your code here for _alltraps
+diff --git a/lib/fork.c b/lib/fork.c
+index d32749e..484aba5 100644
+--- a/lib/fork.c
++++ b/lib/fork.c
+@@ -26,6 +26,16 @@ pgfault(struct UTrapframe *utf)
+ 
+ 	// LAB 4: Your code here.
+ 
++	pte_t pte = uvpt[PGNUM(addr)];
++	// (1)
++	if (!(err & 2))
++		panic("pgfault: the faulting access was a read!");
++		
++	// (2)
++	if (!(pte & PTE_COW))
++		panic("pgfault: it is not a copy-on-write page!");
++
++
+ 	// Allocate a new page, map it at a temporary location (PFTEMP),
+ 	// copy the data from the old page to the new page, then move the new
+ 	// page to the old page's address.
+@@ -34,7 +44,18 @@ pgfault(struct UTrapframe *utf)
+ 
+ 	// LAB 4: Your code here.
+ 
+-	panic("pgfault not implemented");
++	//panic("pgfault not implemented");
++	addr = ROUNDDOWN(addr, PGSIZE);
++	
++	if ((r = sys_page_alloc(sys_getenvid(), (void *) PFTEMP, PTE_U | PTE_P | PTE_W)) < 0)
++		panic("pgfault: sys_page_alloc: %e", r);
++	memmove(PFTEMP, addr, PGSIZE);
++	
++	if ((r = sys_page_map(sys_getenvid(), PFTEMP, sys_getenvid(), addr, PTE_U | PTE_P | PTE_W)) < 0)
++		panic("sys_page_map: %e", r);
++	
++	if ((r = sys_page_unmap(sys_getenvid(), PFTEMP)) < 0)
++		panic("sys_page_unmap: %e", r);
+ }
+ 
+ //
+@@ -54,10 +75,95 @@ duppage(envid_t envid, unsigned pn)
+ 	int r;
+ 
+ 	// LAB 4: Your code here.
+-	panic("duppage not implemented");
++	//panic("duppage not implemented");
++	pte_t pte = uvpt[pn];
++	
++	if ((pte & PTE_W) || (pte & PTE_COW)) {
++		if ((r = sys_page_map(sys_getenvid(), (void *) (pn*PGSIZE), envid, (void *) (pn*PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0) 
++			return r;
++		
++		// Se hace el remap de la copy-on-write page en su propio espacio de direcciones
++		if ((r = sys_page_map(sys_getenvid(), (void *) (pn*PGSIZE), sys_getenvid(), (void *) (pn*PGSIZE), PTE_U | PTE_P | PTE_COW)) < 0) 
++			return r;
++	
++	}
++	// Not writable or copy-on-write pages
++	else {
++		if ((r = sys_page_map(sys_getenvid(), (void *) (pn*PGSIZE), envid, (void *) (pn*PGSIZE), PTE_P | PTE_U)) < 0) 
++			return r;
++	}
++	
+ 	return 0;
+ }
+ 
++static void
++dup_or_share(envid_t dstenv, void *va, int perm) {
++	//panic("dup_or_share not implemented");
++	int r;
++	
++	if (perm & PTE_MAPPED) {
++		if ((r = sys_page_map(0, va, dstenv, va, perm)) < 0)
++			panic("sys_page_map: %e", r);
++	}
++	// Read-only case
++	else if (!(perm & PTE_W)) {
++		if ((r = sys_page_map(0, va, dstenv, va, perm & PTE_SYSCALL)) < 0)
++			panic("sys_page_map: %e", r);
++	}
++	else {
++		if ((r = sys_page_alloc(dstenv, va, perm & PTE_SYSCALL)) < 0)
++			panic("sys_page_alloc: %e", r);
++		if ((r = sys_page_map(dstenv, va, 0, UTEMP, perm & PTE_SYSCALL)) < 0)
++			panic("sys_page_map: %e", r);
++		memmove(UTEMP, va, PGSIZE);
++		if ((r = sys_page_unmap(0, UTEMP)) < 0)
++			panic("sys_page_unmap: %e", r);
++	}
++}
++
++envid_t
++fork_v0(void) {
++	//panic("fork_v0 not implemented");
++	
++	envid_t envid;
++	uint8_t *addr;
++	int r;
++
++	// Allocate a new child environment.
++	// The kernel will initialize it with a copy of our register state,
++	// so that the child will appear to have called sys_exofork() too -
++	// except that in the child, this "fake" call to sys_exofork()
++	// will return 0 instead of the envid of the child.
++	envid = sys_exofork();
++	if (envid < 0)
++		panic("sys_exofork: %e", envid);
++	if (envid == 0) {
++		// We're the child.
++		// The copied value of the global variable 'thisenv'
++		// is no longer valid (it refers to the parent!).
++		// Fix it and return 0.
++		thisenv = &envs[ENVX(sys_getenvid())];
++		return 0;
++	}
++	
++	// We're the parent.
++	
++	for (addr = 0; addr < (uint8_t*) UTOP; addr += PGSIZE) {
++		if (uvpd[PDX(addr)] & PTE_P) {
++			pte_t pte = uvpt[PGNUM(addr)];
++			if (pte & PTE_P) //Si la page esta mapeada
++				dup_or_share(envid, addr, pte & 0xFFF);
++		}
++	}
++	
++	// Start the child environment running
++	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
++		panic("sys_env_set_status: %e", r);
++
++	return envid;
++}
++
++
+ //
+ // User-level fork with copy-on-write.
+ // Set up our page fault handler appropriately.
+@@ -78,7 +184,55 @@ envid_t
+ fork(void)
+ {
+ 	// LAB 4: Your code here.
+-	panic("fork not implemented");
++	//panic("fork not implemented"); 
++	
++	// Fork_v0
++	//return fork_v0();
++	
++	// Copy-on-Write Fork
++	envid_t envid;
++	uint8_t *addr;
++	int r;
++	
++	set_pgfault_handler(pgfault);
++	envid = sys_exofork();
++	if (envid < 0)
++		panic("sys_exofork: %e", envid);
++	// Child
++	if (envid == 0) {
++		// We're the child.
++		// The copied value of the global variable 'thisenv'
++		// is no longer valid (it refers to the parent!).
++		// Fix it and return 0.
++		thisenv = &envs[ENVX(sys_getenvid())];
++		return 0;
++	}
++	
++	// Parent
++	for (addr = 0; addr < (uint8_t*) (UXSTACKTOP - PGSIZE); addr += PGSIZE) {
++		if (uvpd[PDX(addr)] & PTE_P) {
++			pte_t pte = uvpt[PGNUM(addr)];
++			if ((pte & PTE_W) || (pte & PTE_COW)) {
++				r = duppage(envid, PGNUM(addr));
++				if (r < 0)
++					panic("fork: duppage: %e", r);		
++			}
++		}
++	}
++	
++	// Allocate a fresh page in the child for the exception stack
++	sys_page_alloc(envid, (void *) (UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W);
++	
++	// Set the user page fault entrypoint for the child
++	int err = sys_env_set_pgfault_upcall(envid, thisenv->env_pgfault_upcall);
++	if (err < 0)
++		panic("fork: sys_env_set_pgfault_upcall: %e", err);
++	
++	// Start the child environment running
++	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
++		panic("sys_env_set_status: %e", r);
++
++	return envid;
+ }
+ 
+ // Challenge!
+@@ -88,3 +242,4 @@ sfork(void)
+ 	panic("sfork not implemented");
+ 	return -E_INVAL;
+ }
++
+diff --git a/lib/ipc.c b/lib/ipc.c
+index 2e222b9..5380ce7 100644
+--- a/lib/ipc.c
++++ b/lib/ipc.c
+@@ -23,8 +23,32 @@ int32_t
+ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
+ {
+ 	// LAB 4: Your code here.
+-	panic("ipc_recv not implemented");
+-	return 0;
++	//panic("ipc_recv not implemented");
++	
++	// Si pg es NULL indicamos que no se quiere recibir una page
++	if (!pg)
++		pg = (void *) UTOP;
++		
++	int err = sys_ipc_recv(pg);
++	
++	if (from_env_store) {
++		if (err < 0)
++			*from_env_store = 0;
++		else
++			*from_env_store = thisenv->env_ipc_from;
++	}
++	
++	if (perm_store) {
++		if (err < 0)
++			*perm_store = 0;
++		else
++			*perm_store = thisenv->env_ipc_perm;
++	}
++	
++	if (err < 0)
++		return err;
++	
++	return thisenv->env_ipc_value;
+ }
+ 
+ // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
+@@ -39,7 +63,20 @@ void
+ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
+ {
+ 	// LAB 4: Your code here.
+-	panic("ipc_send not implemented");
++	//panic("ipc_send not implemented");
++	
++	int r;
++	
++	// Si pg es NULL indicamos que no se quiere enviar una page
++	if (!pg)
++		pg = (void *) UTOP;
++		
++	while ((r = sys_ipc_try_send(to_env, val, pg, perm)) < 0) {
++		if (r != -E_IPC_NOT_RECV)
++			panic("ipc_send: %e", r);
++			
++		sys_yield();
++	}
+ }
+ 
+ // Find the first environment of the given type.  We'll use this to
+diff --git a/lib/pfentry.S b/lib/pfentry.S
+index f40aeeb..bdc3415 100644
+--- a/lib/pfentry.S
++++ b/lib/pfentry.S
+@@ -65,18 +65,42 @@ _pgfault_upcall:
+ 	// ways as registers become unavailable as scratch space.
+ 	//
+ 	// LAB 4: Your code here.
++	movl %esp, %eax
++	// Llego a trap-time eip:
++	addl $40, %esp 		
++	movl (%esp), %edx
++	// Llego a trap-time esp:
++	addl $8, %esp
++	// Se almacena el valor del trap-time stack pointer		
++	movl (%esp), %esp	 	
++	pushl %edx
++	// Se actualiza el trap-time eip debido al push efectuado
++	subl $4, 48(%eax)
++	// Se recupera el valor de %esp del exception stack	
++	movl %eax, %esp		
++
+ 
+ 	// Restore the trap-time registers.  After you do this, you
+ 	// can no longer modify any general-purpose registers.
+ 	// LAB 4: Your code here.
++	
++	// Pasamos de largo por utf_fault_va y error code
++	addl $8, %esp
++	popal
+ 
+ 	// Restore eflags from the stack.  After you do this, you can
+ 	// no longer use arithmetic operations or anything else that
+ 	// modifies eflags.
+ 	// LAB 4: Your code here.
++	
++	// Primero "salteamos" trap-time eip
++	addl $4, %esp
++	popfl
+ 
+ 	// Switch back to the adjusted trap-time stack.
+ 	// LAB 4: Your code here.
++	popl %esp
+ 
+ 	// Return to re-execute the instruction that faulted.
+ 	// LAB 4: Your code here.
++	ret
+diff --git a/lib/pgfault.c b/lib/pgfault.c
+index a975518..357c350 100644
+--- a/lib/pgfault.c
++++ b/lib/pgfault.c
+@@ -29,7 +29,15 @@ set_pgfault_handler(void (*handler)(struct UTrapframe *utf))
+ 	if (_pgfault_handler == 0) {
+ 		// First time through!
+ 		// LAB 4: Your code here.
+-		panic("set_pgfault_handler not implemented");
++		//panic("set_pgfault_handler not implemented");
++		
++		int err_page_alloc = sys_page_alloc(sys_getenvid(), (void *) (UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W);
++		if (err_page_alloc < 0)
++			panic("set_pgfault_handler: sys_page_alloc: %e", err_page_alloc);
++			
++		int err_set_upcall = sys_env_set_pgfault_upcall(sys_getenvid(), _pgfault_upcall);
++		if (err_set_upcall < 0)
++			panic("set_pgfault_handler: sys_env_set_pgfault_upcall: %e", err_set_upcall);
+ 	}
+ 
+ 	// Save handler pointer for assembly to call.
+diff --git a/user/contador.c b/user/contador.c
+new file mode 100644
+index 0000000..d5db520
+--- /dev/null
++++ b/user/contador.c
+@@ -0,0 +1,54 @@
++#include <inc/lib.h>
++
++static void contador(int linea, int color, int delay);
++/*
++void
++umain(int argc, char **argv)
++{
++	int lineas[] = { 0, 3, 7 };
++	int delays[] = { 1, 4, 7 };
++	int colores[] = { 0x2f, 0x6f, 0x4f };
++
++	int i = (sys_getenvid() - 1) % 3;
++	contador(lineas[i], colores[i], delays[i]);
++}*/
++
++void umain(int argc, char **argv) {
++    if (fork())
++        contador(0, 0x2f, 1);  // Verde, rápido.
++    else if (fork())
++        contador(3, 0x6f, 4);  // Naranja, lento.
++    else
++        contador(7, 0x4f, 7);  // Rojo, muy lento.
++}
++
++static void
++contador(int linea, int color, int delay)
++{
++	char counter[40] = { '0' };  // Our ASCII digit counter (RTL).
++
++	while (1) {
++		char *buf = (void *) VGA_USER + linea * 160;
++		char *c = &counter[40];
++
++		unsigned p = 0;
++		unsigned long long int i = 1ULL << (delay + 15);
++
++		// Cambiar por una llamada a sleep_ticks() una vez implementado.
++		while (i--)
++			;
++
++		while (counter[p] == '9') {
++			counter[p++] = '0';
++		}
++
++		if (!counter[p]++) {
++			counter[p] = '1';
++		}
++
++		while (c-- > counter) {
++			*buf++ = *c;
++			*buf++ = color;
++		}
++	}
++}
+diff --git a/user/forktree.c b/user/forktree.c
+index 57c36f5..5810c41 100644
+--- a/user/forktree.c
++++ b/user/forktree.c
+@@ -25,7 +25,7 @@ void
+ forktree(const char *cur)
+ {
+ 	cprintf("%04x: I am '%s'\n", sys_getenvid(), cur);
+-
++	
+ 	forkchild(cur, '0');
+ 	forkchild(cur, '1');
+ }
+diff --git a/user/spin0.c b/user/spin0.c
+new file mode 100644
+index 0000000..e54b067
+--- /dev/null
++++ b/user/spin0.c
+@@ -0,0 +1,25 @@
++// Forkless spin; pid 0 spins, pid 1 yields.
++
++#include <inc/lib.h>
++#define TICK (1U << 15)
++
++void
++umain(int argc, char **argv)
++{
++	envid_t me = sys_getenvid();
++	unsigned n = 0;
++	bool yield = me & 1;
++
++	while (n++ < 5 || !yield) {
++		unsigned i = TICK;
++		while (i--)
++			;
++		if (yield) {
++			cprintf("I am %08x and I like my interrupt #%u\n", me, n);
++			sys_yield();
++		}
++		else {
++			cprintf("I am %08x and my spin will go on #%u\n", me, n);
++		}
++	}
++}
+diff --git a/user/yield.c b/user/yield.c
+index 6f45bdb..ec8b849 100644
+--- a/user/yield.c
++++ b/user/yield.c
+@@ -1,7 +1,7 @@
+ // yield the processor to other environments
+ 
+ #include <inc/lib.h>
+-
++/*
+ void
+ umain(int argc, char **argv)
+ {
+@@ -15,3 +15,17 @@ umain(int argc, char **argv)
+ 	}
+ 	cprintf("All done in environment %08x.\n", thisenv->env_id);
+ }
++*/
++void
++umain(int argc, char **argv)
++{
++	int i;
++
++	cprintf("Hello, I am environment %08x, cpu %d.\n", thisenv->env_id, thisenv->env_cpunum);
++	for (i = 0; i < 5; i++) {
++		sys_yield();
++		cprintf("Back in environment %08x, iteration %d, cpu %d.\n",
++			thisenv->env_id, i, thisenv->env_cpunum);
++	}
++	cprintf("All done in environment %08x.\n", thisenv->env_id);
++}
